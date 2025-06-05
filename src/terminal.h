@@ -27,10 +27,8 @@ typedef union RGB {
 
 rgb_t new_color(u_int32_t hex_color);
 
-typedef struct String {
-    int capacity;
-    char ** string;
-} string_t;
-
-string_t *new_string(int capacity);
-void *append_string(string_t* string, char *text);
+int terminal_reset();
+int terminal_cursor_home();
+int terminal_clear_screen();
+int terminal_set_foreground(rgb_t *color);
+int terminal_set_background(rgb_t *color);
