@@ -15,11 +15,15 @@ int terminal_reset() {
 }
 
 int terminal_clear_screen() {
-    return printf("\033[2J\r");
+    return fprintf(stdout, "\033[2J\r");
 }
 
 int terminal_cursor_home() {
-    return printf("\033[H\r");
+    return fprintf(stdout, "\033[H\r");
+}
+
+int terminal_cursor_move_to(u_int32_t row, u_int32_t col) {
+    return fprintf(stdout, "\033[%d;%dH", row ,col);
 }
 
 int terminal_set_background(rgb_t *color) {
@@ -38,4 +42,37 @@ int terminal_set_foreground(rgb_t *color) {
         color->components.g,
         color->components.b
     );
+}
+
+void screen_move_cursor(screen_t *screen, direction_e direction) {
+    switch (direction) {
+        case UP: {
+            if (screen->cursor.row - 1 <= screen->padding.top) {
+                return;
+            }
+            screen->cursor.row -= 1;
+            break;
+        }
+        case DOWN: {
+            if (screen->cursor.row + 1 >= screen->padding.bottom - screen->max_row) {
+                return;
+            }
+            screen->cursor.row += 1;
+            break;
+        }
+        case RIGHT: {
+            if (screen->cursor.col + 1 >= screen->padding.right - screen->max_col) {
+                return;
+            }
+            screen->cursor.col += 1;
+            break;
+        }
+        case LEFT: {
+            if (screen->cursor.col - 1 <= screen->padding.left) {
+                return;
+            }
+            screen->cursor.col -= 1;
+            break;
+        }
+    }
 }
