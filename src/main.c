@@ -22,6 +22,9 @@ int main (int argc, char *argv[]) {
 
     struct termios term;
     cfmakeraw(&term);
+    term.c_iflag     = 0;
+    term.c_cc[VMIN]  = 0;
+    term.c_cc[VTIME] = 0;
     tcsetattr(0, TCSANOW, &term);
 
     terminal_cursor_home();
@@ -82,6 +85,7 @@ int main (int argc, char *argv[]) {
     terminal_set_foreground(&blue);
     fprintf(stdout, "BASE");
     terminal_reset();
+    fflush(stdout);
 
     screen_t screen = {
         .padding = { .top = 1, .right = 1, .bottom = 1, .left = 1 },
@@ -91,29 +95,30 @@ int main (int argc, char *argv[]) {
     };
 
     terminal_cursor_move_to(screen.cursor.row, screen.cursor.col);
+    fflush(stdout);
 
     // Need to flush stdin just in case the user pressed a button while the
     // animation was running
     fflush(stdin);
-    int key;
+    unsigned char key[1];
     u_int8_t running = 1;
+    size_t result;
     while (running == 1) {
-        key = getchar();
-        fprintf(logFile, "Key: %x\n", key);
+        result = read(fileno(stdin), key, 1);
+        if (result == 0) {
+            continue;
+        }
+        fprintf(logFile, "Key: %x\n", key[0]);
         fflush(logFile);
-        switch (key) {
-            case '\x1b': { // Never gets here and I'm not sure why
-                int next;
+        switch (key[0]) {
+            case '\x1b': {
                 do {
-                    next = getchar();
-                    if (next != 'O' || next != '[') {
-                        break;
-                    }
-                    fprintf(logFile, "Next: %x\n", next);
+                    result = read(fileno(stdin), key, 1);
+                    fprintf(logFile, "Next: %zu %c %x\n", result, key[0], key[0]);
                     fflush(logFile);
-                } while (next != EOF);
+                } while (result == 1);
 
-                switch (next) {
+                switch (key[0]) {
                     case UP:
                         screen_move_cursor(&screen, UP);
                         terminal_cursor_move_to(screen.cursor.row, screen.cursor.col);
@@ -123,8 +128,11 @@ int main (int argc, char *argv[]) {
                         terminal_cursor_move_to(screen.cursor.row, screen.cursor.col);
                         break;
                     case RIGHT:
+                        // This is no updating the screen and I am not sure why
                         screen_move_cursor(&screen, RIGHT);
                         terminal_cursor_move_to(screen.cursor.row, screen.cursor.col);
+                        fprintf(logFile, "Right: %p %d %d\n", &screen, screen.cursor.row, screen.cursor.col);
+                        fflush(logFile);
                         break;
                     case LEFT:
                         screen_move_cursor(&screen, LEFT);
@@ -140,10 +148,16 @@ int main (int argc, char *argv[]) {
                 terminal_reset();
                 terminal_set_foreground(&pink);
                 // Need to move the cursor back one, this cannot be disabled
-                fprintf(stdout, "%c\033[D", key);
+                fprintf(stdout, "%c\033[D", key[0]);
                 terminal_reset();
                 fflush(stdout);
                 break;
+        }
+        // If no data was read, then the stdin needs to be flushed otherwise
+        // the last character will stay in the buffer. At least that's what appears
+        // to happen.
+        if (result == 0) {
+            fflush(stdin);
         }
     }
 
