@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -6,15 +7,15 @@
 #include <sys/types.h>
 
 #include "terminal.h"
+#include "logger.h"
 
 int main (int argc, char *argv[]) {
-    FILE *logFile;
-    logFile = fopen("application.log", "a");
-
-    if (logFile == NULL) {
-       perror("Error opening log file.");
-       return -1;
+    size_t error = init_logging("application.log");
+    if (error < 0) {
+        // TODO: Send message to stderr?
+        exit(-1);
     }
+
     // Need to save the current terminal settings so that they
     // can be restored after the application closes
     struct termios old_term;
@@ -38,6 +39,12 @@ int main (int argc, char *argv[]) {
 
     fflush(stdout);
 
+    /*
+     * TODO:
+     * Intro animation stuff.
+     * Would be better to avoid using usleep and use a loop with
+     * time diff? Like how you would with a game loop?
+     */
     useconds_t pause = 5000;
     unsigned int max_col = 40;
     unsigned int max_row = 30;
@@ -87,14 +94,17 @@ int main (int argc, char *argv[]) {
     terminal_reset();
     fflush(stdout);
 
-    screen_t screen = {
-        .padding = { .top = 1, .right = 1, .bottom = 1, .left = 1 },
-        .cursor = { .row = 2, .col = 2 },
-        .max_row = max_row,
-        .max_col = max_col
-    };
+    /*
+     * End beginning animation stuff
+     */
 
-    terminal_cursor_move_to(screen.cursor.row, screen.cursor.col);
+    screen_t *screen = malloc(sizeof(screen_t));
+    screen->padding = (padding_t){ .top = 1, .right = 1, .bottom = 1, .left = 1 };
+    screen->cursor = (cursor_t){ .row = 2, .col = 2 };
+    screen->max_row = max_row;
+    screen->max_col = max_col;
+
+    terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
     fflush(stdout);
 
     // Need to flush stdin just in case the user pressed a button while the
@@ -108,35 +118,32 @@ int main (int argc, char *argv[]) {
         if (result == 0) {
             continue;
         }
-        fprintf(logFile, "Key: %x\n", key[0]);
-        fflush(logFile);
+        log_message("Key: %x", key[0]);
         switch (key[0]) {
             case '\x1b': {
                 do {
                     result = read(fileno(stdin), key, 1);
-                    fprintf(logFile, "Next: %zu %c %x\n", result, key[0], key[0]);
-                    fflush(logFile);
+                    log_message("Next: %zu %c %x", result, key[0], key[0]);
                 } while (result == 1);
 
                 switch (key[0]) {
                     case UP:
-                        screen_move_cursor(&screen, UP);
-                        terminal_cursor_move_to(screen.cursor.row, screen.cursor.col);
+                        screen_move_cursor(screen, UP);
+                        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
                         break;
                     case DOWN:
-                        screen_move_cursor(&screen, DOWN);
-                        terminal_cursor_move_to(screen.cursor.row, screen.cursor.col);
+                        screen_move_cursor(screen, DOWN);
+                        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
                         break;
                     case RIGHT:
                         // This is no updating the screen and I am not sure why
-                        screen_move_cursor(&screen, RIGHT);
-                        terminal_cursor_move_to(screen.cursor.row, screen.cursor.col);
-                        fprintf(logFile, "Right: %p %d %d\n", &screen, screen.cursor.row, screen.cursor.col);
-                        fflush(logFile);
+                        screen_move_cursor(screen, RIGHT);
+                        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
+                        log_message("Right: %p %d %d", &screen, screen->cursor.row, screen->cursor.col);
                         break;
                     case LEFT:
-                        screen_move_cursor(&screen, LEFT);
-                        terminal_cursor_move_to(screen.cursor.row, screen.cursor.col);
+                        screen_move_cursor(screen, LEFT);
+                        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
                         break;
                     case 'P':
                         running = 0;
@@ -161,13 +168,19 @@ int main (int argc, char *argv[]) {
         }
     }
 
-    fclose(logFile);
+    // Do I need to free this if the program is going to close anyways?
+    // Won't the OS release that memory? Is it good hygiene to do it anyways?
+    free(screen);
+
     // Reset everything and clear the screen before restoring the old
     // terminal. Just makes the TUI feel less jank
     terminal_reset();
     terminal_cursor_home();
     terminal_clear_screen();
     fflush(stdout);
+
+    // Need to make sure to close the log file
+    close_logging();
 
     // IMPORTANT: Need to restore the terminal to the original settings
     tcsetattr(0, TCSANOW, &old_term);
