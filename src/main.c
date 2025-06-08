@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
 #include <unistd.h>
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
+#include "database.h"
 #include "terminal.h"
 #include "logger.h"
 
@@ -23,8 +25,8 @@ int main (int argc, char *argv[]) {
 
     struct termios term;
     cfmakeraw(&term);
-    term.c_iflag     = 0;
-    term.c_cc[VMIN]  = 0;
+    term.c_iflag = 0;
+    term.c_cc[VMIN] = 0;
     term.c_cc[VTIME] = 0;
     tcsetattr(0, TCSANOW, &term);
 
@@ -47,13 +49,13 @@ int main (int argc, char *argv[]) {
      * time diff? Like how you would with a game loop?
      */
     static useconds_t pause = 5000;
-    static unsigned int max_col = 40;
-    static unsigned int max_row = 30;
+    static u_int32_t max_col = 40;
+    static u_int32_t max_row = 30;
 
-    unsigned int row = 1;
-    unsigned int col = 1;
-    unsigned int col_stop = max_col;
-    unsigned int row_stop = max_row;
+    u_int32_t row = 1;
+    u_int32_t col = 1;
+    u_int32_t col_stop = max_col;
+    u_int32_t row_stop = max_row;
 
     terminal_set_background(&color_pink);
     for (; col <= col_stop; ++col) {
@@ -106,13 +108,18 @@ int main (int argc, char *argv[]) {
     screen->max_row = max_row;
     screen->max_col = max_col;
 
+    database_t *database = new_database(
+        screen->max_row - (screen->padding.left + screen->padding.right),
+        screen->max_col- (screen->padding.top + screen->padding.bottom)
+    );
+
     terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
     fflush(stdout);
 
     // Need to flush stdin just in case the user pressed a button while the
     // animation was running
     fflush(stdin);
-    unsigned char key[1];
+    u_int8_t key[1];
     u_int8_t running = 1;
     size_t result;
     while (running == 1) {
@@ -120,8 +127,18 @@ int main (int argc, char *argv[]) {
         if (result == 0) {
             continue;
         }
+
         log_message("Key: %x", key[0]);
         switch (key[0]) {
+            // Disable these keys for now
+            case '\x09': // tab key
+                break;
+            case '\x0d': { // enter key
+                break;
+            }
+            case '\x7f': { // backspace key
+                break;
+            }
             case '\x1b': {
                 /*
                  * TODO
@@ -137,20 +154,16 @@ int main (int argc, char *argv[]) {
                 switch (key[0]) {
                     case UP:
                         screen_move_cursor(screen, UP);
-                        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
                         break;
                     case DOWN:
                         screen_move_cursor(screen, DOWN);
-                        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
                         break;
                     case RIGHT:
                         // This is no updating the screen and I am not sure why
                         screen_move_cursor(screen, RIGHT);
-                        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
                         break;
                     case LEFT:
                         screen_move_cursor(screen, LEFT);
-                        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
                         break;
                     case 'P':
                         running = 0;
@@ -159,14 +172,14 @@ int main (int argc, char *argv[]) {
                 break;
             }
             default:
-                terminal_reset();
-                terminal_set_foreground(&color_pink);
-                // Need to move the cursor back one, this cannot be disabled
-                fprintf(stdout, "%c\033[D", key[0]);
+                database_update_at(
+                    database,
+                    // TODO: Create a function that calculates the offset row and col values
+                    screen->cursor.row - (screen->padding.left + screen->padding.right),
+                    screen->cursor.col - (screen->padding.top + screen->padding.bottom),
+                    key[0]
+                );
                 screen_move_cursor(screen, RIGHT);
-                terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
-                terminal_reset();
-                fflush(stdout);
                 break;
         }
         // If no data was read, then the stdin needs to be flushed otherwise
@@ -175,11 +188,41 @@ int main (int argc, char *argv[]) {
         if (result == 0) {
             fflush(stdin);
         }
+
+        terminal_hide_cursor();
+        terminal_set_foreground(&color_pink);
+
+        for (size_t row_index = 0; row_index < database->rows; ++row_index) {
+            terminal_cursor_move_to(
+                screen->padding.right + 1 + row_index,
+                screen->padding.top + 1
+            );
+            u_int8_t *line = database->lines[row_index];
+            if (line == NULL) {
+                log_message("LINE NULL at %d", row_index);
+                break;
+            }
+            for (size_t col_index = 0; col_index < database->columns; ++col_index) {
+                u_int8_t character = line[col_index];
+                if (character == 0x0) {
+                    character = ' ';
+                }
+                // Don't need to move the cursor after each character since it will
+                // automatically move to the right. Just need to re-position it for
+                // each row.
+                fprintf(stdout, "%c", character);
+            }
+        }
+
+        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
+        terminal_unhide_cursor();
+        fflush(stdout);
     }
 
     // Do I need to free this if the program is going to close anyways?
     // Won't the OS release that memory? Is it good hygiene to do it anyways?
     free(screen);
+    free_database(database);
 
     // Reset everything and clear the screen before restoring the old
     // terminal. Just makes the TUI feel less jank
