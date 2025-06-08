@@ -31,12 +31,13 @@ int main (int argc, char *argv[]) {
     terminal_cursor_home();
     terminal_clear_screen();
 
-    rgb_t pink = new_color(0xFF77FF);
-    rgb_t blue = new_color(0x1133FF);
+    rgb_t color_pink = new_color(0xFF77FF);
+    rgb_t color_blue = new_color(0x1133FF);
 
     struct winsize w;
     ioctl(0, TIOCGWINSZ, &w);
 
+    terminal_hide_cursor();
     fflush(stdout);
 
     /*
@@ -45,16 +46,16 @@ int main (int argc, char *argv[]) {
      * Would be better to avoid using usleep and use a loop with
      * time diff? Like how you would with a game loop?
      */
-    useconds_t pause = 5000;
-    unsigned int max_col = 40;
-    unsigned int max_row = 30;
+    static useconds_t pause = 5000;
+    static unsigned int max_col = 40;
+    static unsigned int max_row = 30;
 
     unsigned int row = 1;
     unsigned int col = 1;
     unsigned int col_stop = max_col;
     unsigned int row_stop = max_row;
 
-    terminal_set_background(&pink);
+    terminal_set_background(&color_pink);
     for (; col <= col_stop; ++col) {
         terminal_cursor_move_to(row, col);
         fprintf(stdout, " ");
@@ -85,13 +86,14 @@ int main (int argc, char *argv[]) {
         1,
         (max_col / 2) - 3  // 3 being the half the length of the project name
     );
-    terminal_set_foreground(&pink);
+    terminal_set_foreground(&color_pink);
     fprintf(stdout, "cg");
     terminal_reset();
     fprintf(stdout, "'");
-    terminal_set_foreground(&blue);
+    terminal_set_foreground(&color_blue);
     fprintf(stdout, "BASE");
     terminal_reset();
+    terminal_unhide_cursor();
     fflush(stdout);
 
     /*
@@ -121,6 +123,12 @@ int main (int argc, char *argv[]) {
         log_message("Key: %x", key[0]);
         switch (key[0]) {
             case '\x1b': {
+                /*
+                 * TODO
+                 * Need a better way to validate more complex key presses.
+                 * I believe using a trie data structure would work best here.
+                 */
+
                 do {
                     result = read(fileno(stdin), key, 1);
                     log_message("Next: %zu %c %x", result, key[0], key[0]);
@@ -139,7 +147,6 @@ int main (int argc, char *argv[]) {
                         // This is no updating the screen and I am not sure why
                         screen_move_cursor(screen, RIGHT);
                         terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
-                        log_message("Right: %p %d %d", &screen, screen->cursor.row, screen->cursor.col);
                         break;
                     case LEFT:
                         screen_move_cursor(screen, LEFT);
@@ -153,9 +160,11 @@ int main (int argc, char *argv[]) {
             }
             default:
                 terminal_reset();
-                terminal_set_foreground(&pink);
+                terminal_set_foreground(&color_pink);
                 // Need to move the cursor back one, this cannot be disabled
                 fprintf(stdout, "%c\033[D", key[0]);
+                screen_move_cursor(screen, RIGHT);
+                terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
                 terminal_reset();
                 fflush(stdout);
                 break;

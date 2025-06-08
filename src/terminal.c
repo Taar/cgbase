@@ -1,5 +1,7 @@
 #include <stdio.h>
+
 #include "terminal.h"
+#include "logger.h"
 
 rgb_t new_color(u_int32_t hex_color) {
     rgb_t color;
@@ -20,6 +22,14 @@ int terminal_clear_screen() {
 
 int terminal_cursor_home() {
     return fprintf(stdout, "\033[H\r");
+}
+
+int terminal_hide_cursor() {
+    return fprintf(stdout, "\033[?25l");
+}
+
+int terminal_unhide_cursor() {
+    return fprintf(stdout, "\033[?25h");
 }
 
 int terminal_cursor_move_to(u_int32_t row, u_int32_t col) {
@@ -45,34 +55,46 @@ int terminal_set_foreground(rgb_t *color) {
 }
 
 void screen_move_cursor(screen_t *screen, direction_e direction) {
+    log_message(
+        "Before: %d %d %x",
+        screen->cursor.row,
+        screen->cursor.col,
+        direction
+    );
     switch (direction) {
         case UP: {
             if (screen->cursor.row - 1 <= screen->padding.top) {
-                return;
+                break;
             }
             screen->cursor.row -= 1;
             break;
         }
         case DOWN: {
-            if (screen->cursor.row + 1 >= screen->padding.bottom - screen->max_row) {
-                return;
+            if (screen->cursor.row + 1 >= screen->max_row - screen->padding.bottom) {
+                break;
             }
             screen->cursor.row += 1;
             break;
         }
         case RIGHT: {
-            if (screen->cursor.col + 1 >= screen->padding.right - screen->max_col) {
-                return;
+            if (screen->cursor.col + 1 >= screen->max_col - screen->padding.right) {
+                break;
             }
             screen->cursor.col += 1;
             break;
         }
         case LEFT: {
             if (screen->cursor.col - 1 <= screen->padding.left) {
-                return;
+                break;
             }
             screen->cursor.col -= 1;
             break;
         }
     }
+    log_message(
+        "After: %d %d %x",
+        screen->cursor.row,
+        screen->cursor.col,
+        direction
+    );
 }

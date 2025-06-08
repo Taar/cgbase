@@ -30,6 +30,8 @@ rgb_t new_color(u_int32_t hex_color);
 int terminal_set_foreground(rgb_t *color);
 int terminal_set_background(rgb_t *color);
 int terminal_reset();
+int terminal_hide_cursor();
+int terminal_unhide_cursor();
 int terminal_cursor_home();
 int terminal_clear_screen();
 int terminal_cursor_move_to(u_int32_t row, u_int32_t col);
