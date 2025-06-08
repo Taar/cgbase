@@ -4,12 +4,9 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 
-#define BUFFER_SIZE 512
-static_assert(BUFFER_SIZE >= 64, "Buffer size is too small");
+static FILE *log_file = NULL;
 
-static FILE* log_file = NULL;
-
-int init_logging(const char* filename) {
+int init_logging(const char *filename) {
     if (filename == NULL) {
         perror("Invalid file name");
         return -1;
@@ -34,8 +31,7 @@ void close_logging() {
     }
 }
 
-// TODO: Need to revisit this at some point ...
-int log_message(const char* format, ...) {
+int log_message(const char *format, ...) {
     if (format == NULL) {
         perror("Error text was a null pointer");
         return -1;
@@ -46,24 +42,37 @@ int log_message(const char* format, ...) {
         return -1;
     }
 
-    va_list args;
-    va_start(args, format);
+    va_list args1;
+    va_start(args1, format);
+    va_list args2;
+    va_copy(args2, args1);
 
-    size_t size = vsnprintf(NULL, 0, format, args);
+    size_t size = vsnprintf(NULL, 0, format, args1);
+    va_end(args1);
+
     char text[size + 1];
-    snprintf(text, BUFFER_SIZE, format, args);
+    vsnprintf(text, sizeof(text), format, args2);
 
-    va_end(args);
+    va_end(args2);
 
-    time_t now = time(NULL);
-    size = 0;
-    size = snprintf(NULL, 0, "[%s] %s", ctime(&now), text);
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    char time_buf[100];
+    strftime(
+        time_buf,
+        sizeof(time_buf),
+        "%D %T",
+        gmtime(&ts.tv_sec)
+    );
+
+    size = snprintf(NULL, 0, "%s: %s", time_buf, text);
     char buffer[size + 1];
-    snprintf(buffer, BUFFER_SIZE, "[%s] %s", ctime(&now), text);
+    snprintf(buffer, sizeof(buffer), "%s: %s", time_buf, text);
 
     flockfile(log_file);
     fprintf(log_file, "%s\n", buffer);
     fflush(log_file);
     funlockfile(log_file);
+
     return 0;
 }
