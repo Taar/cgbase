@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include "terminal.h"
-#include "logger.h"
 
 rgb_t new_color(u_int32_t hex_color) {
     rgb_t color;
@@ -51,50 +50,5 @@ int terminal_set_foreground(rgb_t *color) {
         color->components.r,
         color->components.g,
         color->components.b
-    );
-}
-
-void screen_move_cursor(screen_t *screen, direction_e direction) {
-    log_message(
-        "Before: %d %d %x",
-        screen->cursor.row,
-        screen->cursor.col,
-        direction
-    );
-    switch (direction) {
-        case UP: {
-            if (screen->cursor.row - 1 <= screen->padding.top) {
-                break;
-            }
-            screen->cursor.row -= 1;
-            break;
-        }
-        case DOWN: {
-            if (screen->cursor.row + 1 >= screen->max_row - screen->padding.bottom) {
-                break;
-            }
-            screen->cursor.row += 1;
-            break;
-        }
-        case RIGHT: {
-            if (screen->cursor.col + 1 >= screen->max_col - screen->padding.right) {
-                break;
-            }
-            screen->cursor.col += 1;
-            break;
-        }
-        case LEFT: {
-            if (screen->cursor.col - 1 <= screen->padding.left) {
-                break;
-            }
-            screen->cursor.col -= 1;
-            break;
-        }
-    }
-    log_message(
-        "After: %d %d %x",
-        screen->cursor.row,
-        screen->cursor.col,
-        direction
     );
 }

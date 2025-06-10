@@ -35,33 +35,3 @@ int terminal_unhide_cursor();
 int terminal_cursor_home();
 int terminal_clear_screen();
 int terminal_cursor_move_to(u_int32_t row, u_int32_t col);
-
-typedef struct Padding {
-    u_int8_t left;
-    u_int8_t bottom;
-    u_int8_t right;
-    u_int8_t top;
-} padding_t;
-
-typedef struct Cursor {
-    u_int16_t row;
-    u_int16_t col;
-} cursor_t;
-
-typedef struct Screen {
-    padding_t padding;
-    u_int16_t max_row;
-    u_int16_t max_col;
-    cursor_t cursor;
-} screen_t;
-
-// Each direction is set to the number (char) that will be placed within the
-// stdin buffer when the corresponding arrow key is pressed.
-typedef enum DIRECTION {
-    UP = 'A',
-    DOWN = 'B',
-    RIGHT = 'C',
-    LEFT = 'D'
-} direction_e;
-
-void screen_move_cursor(screen_t *screen, direction_e direction);

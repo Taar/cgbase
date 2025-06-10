@@ -9,6 +9,7 @@
 
 #include "database.h"
 #include "terminal.h"
+#include "screen.h"
 #include "logger.h"
 
 int main (int argc, char *argv[]) {
@@ -109,8 +110,8 @@ int main (int argc, char *argv[]) {
     screen->max_col = max_col;
 
     database_t *database = new_database(
-        screen->max_row - (screen->padding.left + screen->padding.right),
-        screen->max_col- (screen->padding.top + screen->padding.bottom)
+        screen_get_row_count(screen),
+        screen_get_column_count(screen)
     );
 
     terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
@@ -159,7 +160,6 @@ int main (int argc, char *argv[]) {
                         screen_move_cursor(screen, DOWN);
                         break;
                     case RIGHT:
-                        // This is no updating the screen and I am not sure why
                         screen_move_cursor(screen, RIGHT);
                         break;
                     case LEFT:
@@ -174,9 +174,8 @@ int main (int argc, char *argv[]) {
             default:
                 database_update_at(
                     database,
-                    // TODO: Create a function that calculates the offset row and col values
-                    screen->cursor.row - (screen->padding.left + screen->padding.right),
-                    screen->cursor.col - (screen->padding.top + screen->padding.bottom),
+                    screen_get_row_index(screen),
+                    screen_get_column_index(screen),
                     key[0]
                 );
                 screen_move_cursor(screen, RIGHT);
