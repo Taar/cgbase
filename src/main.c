@@ -13,7 +13,7 @@
 #include "logger.h"
 
 int main (int argc, char *argv[]) {
-    size_t error = init_logging("application.log");
+    int error = init_logging("application.log");
     if (error < 0) {
         // TODO: Send message to stderr?
         exit(-1);
@@ -50,13 +50,13 @@ int main (int argc, char *argv[]) {
      * time diff? Like how you would with a game loop?
      */
     static useconds_t pause = 5000;
-    static u_int32_t max_col = 40;
-    static u_int32_t max_row = 30;
+    static size_t max_col = 40;
+    static size_t max_row = 30;
 
-    u_int32_t row = 1;
-    u_int32_t col = 1;
-    u_int32_t col_stop = max_col;
-    u_int32_t row_stop = max_row;
+    size_t row = 1;
+    size_t col = 1;
+    size_t col_stop = max_col;
+    size_t row_stop = max_row;
 
     terminal_set_background(&color_pink);
     for (; col <= col_stop; ++col) {
@@ -104,6 +104,9 @@ int main (int argc, char *argv[]) {
      */
 
     screen_t *screen = malloc(sizeof(screen_t));
+    if (screen == NULL) {
+        // TODO: need to handle this case
+    }
     screen->padding = (padding_t){ .top = 1, .right = 1, .bottom = 1, .left = 1 };
     screen->cursor = (cursor_t){ .row = 2, .col = 2 };
     screen->max_row = max_row;
@@ -113,6 +116,9 @@ int main (int argc, char *argv[]) {
         screen_get_row_count(screen),
         screen_get_column_count(screen)
     );
+    if (database == NULL) {
+        // TODO: need to handle this case
+    }
 
     terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
     fflush(stdout);
@@ -124,6 +130,9 @@ int main (int argc, char *argv[]) {
     u_int8_t running = 1;
     size_t result;
     while (running == 1) {
+        // TODO: key press time frame which will be the time in which the data on
+        // stdin counts towards a single key press or maybe a single key press is
+        // when stdin runs out of data
         result = read(fileno(stdin), key, 1);
         if (result == 0) {
             continue;

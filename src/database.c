@@ -1,9 +1,10 @@
-#include "database.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
-database_t *new_database(u_int32_t rows, u_int32_t columns){
+#include "database.h"
+#include "errors.h"
+
+database_t *new_database(size_t rows, size_t columns){
     database_t *database = malloc(sizeof(database_t));
     if (database == NULL) {
         return NULL;
@@ -13,7 +14,7 @@ database_t *new_database(u_int32_t rows, u_int32_t columns){
     database->rows = rows;
     database->lines = NULL;
 
-    u_int8_t **lines = malloc(sizeof(u_int8_t *) * database->rows);
+    u_int8_t **lines = calloc(database->rows, sizeof(u_int8_t *));
     if (lines == NULL) {
         free(database);
         return NULL;
@@ -41,20 +42,20 @@ database_t *new_database(u_int32_t rows, u_int32_t columns){
 
 int database_update_at(
     database_t *database,
-    u_int32_t row,
-    u_int32_t column,
+    size_t row,
+    size_t column,
     u_int8_t character
 ) {
     if (database == NULL) {
-        return NULL_PTR;
+        return ERROR_NULL_PTR;
     }
 
     if (row > database->rows) {
-        return ROW_OUT_OF_BOUNDS;
+        return ERROR_ROW_OUT_OF_BOUNDS;
     }
 
     if (column > database->columns) {
-        return COLUMN_OUT_OF_BOUNDS;
+        return ERROR_COLUMN_OUT_OF_BOUNDS;
     }
 
     u_int8_t *line = database->lines[row];

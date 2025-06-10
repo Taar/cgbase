@@ -3,65 +3,73 @@
 #include "screen.h"
 #include "logger.h"
 
-u_int32_t screen_get_row_index(screen_t * screen) {
+size_t screen_get_row_index(screen_t *screen) {
     if (screen == NULL) {
-        return -1;
+        log_message("WARNING: screen is a NULL pointer");
+        return 0;
     }
 
     return screen->cursor.row - (screen->padding.left + screen->padding.right);
 }
 
-u_int32_t screen_get_row_count(screen_t * screen) {
+size_t screen_get_row_count(screen_t *screen) {
     if (screen == NULL) {
-        return -1;
+        log_message("WARNING: screen is a NULL pointer");
+        return 0;
     }
 
     return screen->max_row - (screen->padding.left + screen->padding.right);
 }
 
-u_int32_t screen_get_row_max(screen_t * screen) {
+size_t screen_get_row_max(screen_t *screen) {
     if (screen == NULL) {
-        return -1;
+        log_message("WARNING: screen is a NULL pointer");
+        return 0;
     }
 
     return screen->cursor.row - screen->padding.right;
 }
 
-u_int32_t screen_get_row_min(screen_t * screen) {
+size_t screen_get_row_min(screen_t *screen) {
     if (screen == NULL) {
-        return -1;
+        log_message("WARNING: screen is a NULL pointer");
+        return 0;
     }
 
     return 1 + screen->padding.left;
 }
 
-u_int32_t screen_get_column_index(screen_t * screen) {
+size_t screen_get_column_index(screen_t *screen) {
     if (screen == NULL) {
-        return -1;
+        log_message("WARNING: screen is a NULL pointer");
+        return 0;
     }
 
     return screen->cursor.col - (screen->padding.top + screen->padding.bottom);
 }
 
-u_int32_t screen_get_column_count(screen_t * screen) {
+size_t screen_get_column_count(screen_t *screen) {
     if (screen == NULL) {
-        return -1;
+        log_message("WARNING: screen is a NULL pointer");
+        return 0;
     }
 
     return screen->max_col - (screen->padding.top + screen->padding.bottom);
 }
 
-u_int32_t screen_get_column_max(screen_t * screen) {
+size_t screen_get_column_max(screen_t *screen) {
     if (screen == NULL) {
-        return -1;
+        log_message("WARNING: screen is a NULL pointer");
+        return 0;
     }
 
     return screen->cursor.col - screen->padding.bottom;
 }
 
-u_int32_t screen_get_column_min(screen_t * screen) {
+size_t screen_get_column_min(screen_t *screen) {
     if (screen == NULL) {
-        return -1;
+        log_message("WARNING: screen is a NULL pointer");
+        return 0;
     }
 
     return 1 + screen->padding.top;
@@ -69,6 +77,7 @@ u_int32_t screen_get_column_min(screen_t * screen) {
 
 void screen_move_cursor(screen_t *screen, direction_e direction) {
     if (screen == NULL) {
+        log_message("WARNING: screen is a NULL pointer");
         return;
     }
 

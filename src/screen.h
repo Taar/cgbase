@@ -10,14 +10,14 @@ typedef struct Padding {
 } padding_t;
 
 typedef struct Cursor {
-    u_int32_t row;
-    u_int32_t col;
+    size_t row;
+    size_t col;
 } cursor_t;
 
 typedef struct Screen {
     cursor_t cursor;
-    u_int32_t max_row;
-    u_int32_t max_col;
+    size_t max_row;
+    size_t max_col;
     padding_t padding;
 } screen_t;
 
@@ -30,14 +30,14 @@ typedef enum DIRECTION {
     LEFT = 'D'
 } direction_e;
 
-u_int32_t screen_get_row_index(screen_t *screen);
-u_int32_t screen_get_row_count(screen_t *screen);
-u_int32_t screen_get_row_max(screen_t *screen);
-u_int32_t screen_get_row_min(screen_t *screen);
+size_t screen_get_row_index(screen_t *screen);
+size_t screen_get_row_count(screen_t *screen);
+size_t screen_get_row_max(screen_t *screen);
+size_t screen_get_row_min(screen_t *screen);
 
-u_int32_t screen_get_column_index(screen_t *screen);
-u_int32_t screen_get_column_count(screen_t *screen);
-u_int32_t screen_get_column_max(screen_t *screen);
-u_int32_t screen_get_column_min(screen_t *screen);
+size_t screen_get_column_index(screen_t *screen);
+size_t screen_get_column_count(screen_t *screen);
+size_t screen_get_column_max(screen_t *screen);
+size_t screen_get_column_min(screen_t *screen);
 
 void screen_move_cursor(screen_t *screen, direction_e direction);

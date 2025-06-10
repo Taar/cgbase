@@ -1,0 +1,9 @@
+#pragma once
+
+#define ERROR_NULL_PTR -1
+
+#define ERROR_ROW_OUT_OF_BOUNDS -2
+#define ERROR_COLUMN_OUT_OF_BOUNDS -3
+
+#define ERROR_CANNOT_ADD_TO_LEAF_NODE -4
+#define ERROR_LIST_IS_AT_CAPACITY -5

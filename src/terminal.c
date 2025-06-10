@@ -31,8 +31,8 @@ int terminal_unhide_cursor() {
     return fprintf(stdout, "\033[?25h");
 }
 
-int terminal_cursor_move_to(u_int32_t row, u_int32_t col) {
-    return fprintf(stdout, "\033[%d;%dH", row ,col);
+int terminal_cursor_move_to(size_t row, size_t col) {
+    return fprintf(stdout, "\033[%zu;%zuH", row, col);
 }
 
 int terminal_set_background(rgb_t *color) {
