@@ -3,11 +3,13 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
 #include "database.h"
+#include "keys.h"
 #include "terminal.h"
 #include "screen.h"
 #include "logger.h"
@@ -123,64 +125,62 @@ int main (int argc, char *argv[]) {
     terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
     fflush(stdout);
 
+    key_code_t *root = create_key_code_tree();
+    log_message("ROOT: %d - %d", root->children->capacity, root->children->size);
+
     // Need to flush stdin just in case the user pressed a button while the
     // animation was running
     fflush(stdin);
+
     u_int8_t key[1];
     u_int8_t running = 1;
-    size_t result;
+    size_t result = 0;
+    key_code_t *current_key_code = root;
+
+    clock_t last_render = clock();
+    double accumulator = 0;
+    double slice = 16.7 * 15;
+
     while (running == 1) {
-        // TODO: key press time frame which will be the time in which the data on
-        // stdin counts towards a single key press or maybe a single key press is
-        // when stdin runs out of data
-        result = read(fileno(stdin), key, 1);
-        if (result == 0) {
-            continue;
-        }
+        do {
+            result = read(fileno(stdin), key, 1);
 
-        log_message("Key: %x", key[0]);
-        switch (key[0]) {
-            // Disable these keys for now
-            case '\x09': // tab key
-                break;
-            case '\x0d': { // enter key
+            if (result == 0 && current_key_code == root) {
                 break;
             }
-            case '\x7f': { // backspace key
-                break;
-            }
-            case '\x1b': {
-                /*
-                 * TODO
-                 * Need a better way to validate more complex key presses.
-                 * I believe using a trie data structure would work best here.
-                 */
+            log_message("stdin: %d - %x", result, key[0]);
 
-                do {
-                    result = read(fileno(stdin), key, 1);
-                    log_message("Next: %zu %c %x", result, key[0], key[0]);
-                } while (result == 1);
-
-                switch (key[0]) {
-                    case UP:
+            if (result == 0 && current_key_code != root) {
+                log_message("SPECIAL: %x", current_key_code->special_key);
+                switch (current_key_code->special_key) {
+                    case UP_ARROW_KEY:
                         screen_move_cursor(screen, UP);
                         break;
-                    case DOWN:
+                    case DOWN_ARROW_KEY:
                         screen_move_cursor(screen, DOWN);
                         break;
-                    case RIGHT:
+                    case RIGHT_ARROW_KEY:
                         screen_move_cursor(screen, RIGHT);
                         break;
-                    case LEFT:
+                    case LEFT_ARROW_KEY:
                         screen_move_cursor(screen, LEFT);
                         break;
-                    case 'P':
+                    case F1_KEY:
                         running = 0;
+                        break;
+                    default:
                         break;
                 }
                 break;
             }
-            default:
+
+            log_message("Key Byte: %x", key[0]);
+
+            int child_index = key_code_find_by_index(current_key_code, key[0]);
+
+            log_message("Child Index: %d", child_index);
+
+            if (child_index < 0 && current_key_code == root) {
                 database_update_at(
                     database,
                     screen_get_row_index(screen),
@@ -188,14 +188,38 @@ int main (int argc, char *argv[]) {
                     key[0]
                 );
                 screen_move_cursor(screen, RIGHT);
-                break;
+                continue;
+            }
+
+            key_code_t *key_code = key_code_get_by_index(
+                current_key_code,
+                child_index
+            );
+            if (key_code == NULL) {
+                log_message(
+                    "WARNING: NULL ptr for %x at %d",
+                    current_key_code->key,
+                    child_index
+                );
+                continue;
+            }
+            log_message("Key code found: %x", key_code->key);
+            current_key_code = key_code;
+        } while (result > 0);
+
+        key[0] = 0x00;
+        fflush(stdin);
+        current_key_code = root;
+
+        double duration = (1.0 * (clock() - last_render) / CLOCKS_PER_SEC) / 1000.0;
+        accumulator += duration;
+        if (accumulator < slice) {
+            accumulator += duration;
+            continue;
         }
-        // If no data was read, then the stdin needs to be flushed otherwise
-        // the last character will stay in the buffer. At least that's what appears
-        // to happen.
-        if (result == 0) {
-            fflush(stdin);
-        }
+        accumulator -= slice;
+
+        // draw part of the loop
 
         terminal_hide_cursor();
         terminal_set_foreground(&color_pink);
@@ -231,6 +255,7 @@ int main (int argc, char *argv[]) {
     // Won't the OS release that memory? Is it good hygiene to do it anyways?
     free(screen);
     free_database(database);
+    free_key_code(root);
 
     // Reset everything and clear the screen before restoring the old
     // terminal. Just makes the TUI feel less jank

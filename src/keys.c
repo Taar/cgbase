@@ -100,12 +100,36 @@ int key_code_add_child(key_code_t *parent, key_code_t *child) {
     return 0;
 }
 
-#define KEY_COUNT 6
+int key_code_find_by_index(key_code_t *key_code, u_int8_t key) {
+    if (key_code == NULL || key_code->is_leaf) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < key_code->children->size; ++i) {
+        key_code_t *child = key_code->children->keys[i];
+        if (child != NULL && child->key == key) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+key_code_t *key_code_get_by_index(key_code_t *key_code, int index) {
+    if (key_code == NULL || key_code->is_leaf || index >= key_code->children->size) {
+        return NULL;
+    }
+
+    return key_code->children->keys[index];
+}
+
+#define KEY_COUNT 9
 #define MAX_KEY_BYTES 6
+#define BASE_CAPACITY 8
 key_code_t *create_key_code_tree() {
     key_code_t *root = create_key_code(
-        0x0,
-        1,
+        0x00,
+        BASE_CAPACITY,
         NOOP_KEY
     );
     if (root == NULL) {
@@ -115,22 +139,50 @@ key_code_t *create_key_code_tree() {
     // Being super lazy here *<:o)
     // There is probably a better way to do this but I don't want to spend the
     // figuring it out atm. Doesn't seem like it would be worth it
+    // The special key is always after 0x00 which also defines the end of the
+    // key presses byte code
     u_int8_t keys[KEY_COUNT][MAX_KEY_BYTES] = {
-        {0x1b, 0x00},
-        {0x1b, 0x5b, 0x41, 0x00},
-        {0x1b, 0x5b, 0x42, 0x00},
-        {0x1b, 0x5b, 0x43, 0x00},
-        {0x1b, 0x5b, 0x44, 0x00},
-        {0x1b, 0x4f, 0x50, 0x00}
+        {9, 0x00, NOOP_KEY},
+        {13, 0x00, NOOP_KEY},
+        {127, 0x00, NOOP_KEY},
+        {27, 0x00, NOOP_KEY},
+        {27, 91, 65, 0x00, UP_ARROW_KEY},
+        {27, 91, 66, 0x00, DOWN_ARROW_KEY},
+        {27, 91, 67, 0x00, RIGHT_ARROW_KEY},
+        {27, 91, 68, 0x00, LEFT_ARROW_KEY},
+        {27, 79, 80, 0x00, F1_KEY}
     };
 
+    key_code_t *current_key_code = root;
     for (size_t key_index = 0; key_index < KEY_COUNT; ++key_index) {
         for (size_t byte_index = 0; byte_index < MAX_KEY_BYTES; ++byte_index) {
             u_int8_t byte = keys[key_index][byte_index];
             if (byte == 0x00) {
+                current_key_code->special_key = keys[key_index][byte_index + 1];
                 break;
             }
+            int index = key_code_find_by_index(current_key_code, byte);
+            if (index >= 0) {
+                current_key_code = key_code_get_by_index(current_key_code, index);
+                if (current_key_code == NULL) {
+                    free_key_code(root);
+                    return NULL;
+                }
+            } else if (index < 0) {
+                key_code_t *new_key_code = create_key_code(
+                    byte,
+                    BASE_CAPACITY,
+                    NOOP_KEY
+                );
+                if (new_key_code == NULL) {
+                    free_key_code(root);
+                    return NULL;
+                }
+                key_code_add_child(current_key_code, new_key_code);
+                current_key_code = new_key_code;
+            }
         }
+        current_key_code = root;
     }
 
     return root;
