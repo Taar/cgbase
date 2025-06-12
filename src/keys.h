@@ -13,7 +13,6 @@ typedef enum SpecialKey {
 } special_key_t;
 
 typedef struct KeyCode key_code_t;
-typedef struct KeyList key_list_t;
 
 // NOTE: leaf nodes will have a capacity and size of zero
 typedef struct KeyCode {
