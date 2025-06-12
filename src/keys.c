@@ -102,7 +102,7 @@ key_code_t *key_code_get_by_index(key_code_t *key_code, size_t index) {
 
 #define KEY_COUNT 9
 #define MAX_KEY_BYTES 6
-#define BASE_CAPACITY 8
+#define BASE_CAPACITY 2
 key_code_t *create_key_code_tree() {
     key_code_t *root = create_key_code(
         0x00,
@@ -133,12 +133,13 @@ key_code_t *create_key_code_tree() {
     key_code_t *current_key_code = root;
     for (size_t key_index = 0; key_index < KEY_COUNT; ++key_index) {
         for (size_t byte_index = 0; byte_index < MAX_KEY_BYTES; ++byte_index) {
-            u_int8_t byte = keys[key_index][byte_index];
-            if (byte == 0x00) {
+            u_int8_t key = keys[key_index][byte_index];
+            if (key == 0x00) {
                 current_key_code->special_key = keys[key_index][byte_index + 1];
                 break;
             }
-            int index = key_code_find_by_index(current_key_code, byte);
+
+            int index = key_code_find_by_index(current_key_code, key);
             if (index >= 0) {
                 current_key_code = key_code_get_by_index(current_key_code, index);
                 if (current_key_code == NULL) {
@@ -147,7 +148,7 @@ key_code_t *create_key_code_tree() {
                 }
             } else if (index < 0) {
                 key_code_t *new_key_code = create_key_code(
-                    byte,
+                    key,
                     BASE_CAPACITY,
                     NOOP_KEY
                 );

@@ -140,6 +140,8 @@ int main (int argc, char *argv[]) {
 
     clock_t last_render = clock();
     double accumulator = 0;
+    // TODO: This should make it so that the render is only happening 4 times a second
+    // Maybe it would be better to only render if there is a change (on input)?
     double slice = 16.7 * 15;
 
     while (running == 1) {
