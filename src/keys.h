@@ -16,10 +16,11 @@ typedef struct KeyCode key_code_t;
 typedef struct KeyList key_list_t;
 
 typedef struct KeyCode {
-    key_list_t *children;
+    key_code_t **children;
+    size_t capacity;
+    size_t size;
     special_key_t special_key;
     u_int8_t key;
-    u_int8_t is_leaf;
 } key_code_t;
 
 key_code_t *create_key_code(u_int8_t key, size_t capacity, special_key_t special_key);
@@ -30,14 +31,6 @@ int key_code_add_child(key_code_t *parent, key_code_t *child);
 // can fit a positive value that is larger than an int. Should this be a long long?
 // I think it's ok for now cause the list won't ever have that many values
 int key_code_find_by_index(key_code_t *key_code, u_int8_t key);
-key_code_t *key_code_get_by_index(key_code_t *key_code, int index);
+key_code_t *key_code_get_by_index(key_code_t *key_code, size_t index);
 
 void free_key_code(key_code_t *key_code);
-
-typedef struct KeyList {
-    key_code_t **keys;
-    size_t capacity;
-    size_t size;
-} key_list_t;
-
-key_list_t *create_key_list(size_t capacity);

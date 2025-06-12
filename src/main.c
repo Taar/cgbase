@@ -20,6 +20,7 @@ int main (int argc, char *argv[]) {
         // TODO: Send message to stderr?
         exit(-1);
     }
+    log_message("STARTING ...");
 
     // Need to save the current terminal settings so that they
     // can be restored after the application closes
@@ -126,7 +127,7 @@ int main (int argc, char *argv[]) {
     fflush(stdout);
 
     key_code_t *root = create_key_code_tree();
-    log_message("ROOT: %d - %d", root->children->capacity, root->children->size);
+    log_message("ROOT: %d - %d", root->capacity, root->size);
 
     // Need to flush stdin just in case the user pressed a button while the
     // animation was running
