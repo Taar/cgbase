@@ -2,6 +2,9 @@
 
 #include <sys/types.h>
 
+#include "keys.h"
+#include "terminal.h"
+
 typedef struct Padding {
     u_int8_t left;
     u_int8_t bottom;
@@ -30,6 +33,9 @@ typedef enum DIRECTION {
     LEFT = 'D'
 } direction_e;
 
+void screen_update(screen_t *screen, key_press_t *key_press, double delta);
+void screen_move_cursor(screen_t *screen, direction_e direction);
+
 size_t screen_get_row_index(screen_t *screen);
 size_t screen_get_row_count(screen_t *screen);
 size_t screen_get_row_max(screen_t *screen);
@@ -39,5 +45,3 @@ size_t screen_get_column_index(screen_t *screen);
 size_t screen_get_column_count(screen_t *screen);
 size_t screen_get_column_max(screen_t *screen);
 size_t screen_get_column_min(screen_t *screen);
-
-void screen_move_cursor(screen_t *screen, direction_e direction);

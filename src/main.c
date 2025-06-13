@@ -4,6 +4,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdbool.h>
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -133,91 +134,42 @@ int main (int argc, char *argv[]) {
     // animation was running
     fflush(stdin);
 
-    u_int8_t key[1];
-    u_int8_t running = 1;
-    size_t result = 0;
-    key_code_t *current_key_code = root;
+    bool running = true;
 
     clock_t last_render = clock();
-    double accumulator = 0;
+    double accumulator = 0.0;
     // TODO: This should make it so that the render is only happening 4 times a second
     // Maybe it would be better to only render if there is a change (on input)?
     double slice = 16.7 * 15;
 
-    while (running == 1) {
-        do {
-            result = read(fileno(stdin), key, 1);
+    key_press_t *key_press = malloc(sizeof(key_press_t));
+    key_press->is_special = true;
+    key_press->key = NOOP_KEY;
 
-            if (result == 0 && current_key_code == root) {
-                break;
-            }
-            log_message("stdin: %d - %x", result, key[0]);
+    while (running) {
 
-            if (result == 0 && current_key_code != root) {
-                log_message("SPECIAL: %x", current_key_code->special_key);
-                switch (current_key_code->special_key) {
-                    case UP_ARROW_KEY:
-                        screen_move_cursor(screen, UP);
-                        break;
-                    case DOWN_ARROW_KEY:
-                        screen_move_cursor(screen, DOWN);
-                        break;
-                    case RIGHT_ARROW_KEY:
-                        screen_move_cursor(screen, RIGHT);
-                        break;
-                    case LEFT_ARROW_KEY:
-                        screen_move_cursor(screen, LEFT);
-                        break;
-                    case F1_KEY:
-                        running = 0;
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
+        double delta = (1.0 * (clock() - last_render) / CLOCKS_PER_SEC) / 1000.0;
 
-            log_message("Key Byte: %x", key[0]);
+        handle_input(key_press, root);
 
-            int child_index = key_code_find_by_index(current_key_code, key[0]);
-
-            log_message("Child Index: %d", child_index);
-
-            if (child_index < 0 && current_key_code == root) {
-                database_update_at(
-                    database,
-                    screen_get_row_index(screen),
-                    screen_get_column_index(screen),
-                    key[0]
-                );
-                screen_move_cursor(screen, RIGHT);
-                continue;
-            }
-
-            key_code_t *key_code = key_code_get_by_index(
-                current_key_code,
-                child_index
+        if (key_press->is_special && key_press->key == F1_KEY) {
+            running = false;
+            continue;
+        } else if (!key_press->is_special) {
+            database_update_at(
+                database,
+                screen_get_row_index(screen),
+                screen_get_column_index(screen),
+                key_press->key
             );
-            if (key_code == NULL) {
-                log_message(
-                    "WARNING: NULL ptr for %x at %d",
-                    current_key_code->key,
-                    child_index
-                );
-                continue;
-            }
-            log_message("Key code found: %x", key_code->key);
-            current_key_code = key_code;
-        } while (result > 0);
+            screen_move_cursor(screen, RIGHT);
+        }
 
-        key[0] = 0x00;
-        fflush(stdin);
-        current_key_code = root;
+        screen_update(screen, key_press, delta);
 
-        double duration = (1.0 * (clock() - last_render) / CLOCKS_PER_SEC) / 1000.0;
-        accumulator += duration;
+        accumulator += delta;
         if (accumulator < slice) {
-            accumulator += duration;
+            accumulator += delta;
             continue;
         }
         accumulator -= slice;
@@ -257,6 +209,7 @@ int main (int argc, char *argv[]) {
     // Do I need to free this if the program is going to close anyways?
     // Won't the OS release that memory? Is it good hygiene to do it anyways?
     free(screen);
+    free(key_press);
     free_database(database);
     free_key_code(root);
 

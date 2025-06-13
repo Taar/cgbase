@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sys/types.h>
+#include <stdbool.h>
 
 typedef enum SpecialKey {
     NOOP_KEY = 0x00,
@@ -13,6 +14,13 @@ typedef enum SpecialKey {
 } special_key_t;
 
 typedef struct KeyCode key_code_t;
+
+typedef struct KeyPress {
+    u_int8_t key;
+    bool is_special;
+} key_press_t;
+
+void handle_input(key_press_t *key_press, key_code_t *root);
 
 // NOTE: leaf nodes will have a capacity and size of zero
 typedef struct KeyCode {

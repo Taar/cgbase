@@ -2,6 +2,7 @@
 
 #include "screen.h"
 #include "logger.h"
+#include "keys.h"
 
 size_t screen_get_row_index(screen_t *screen) {
     if (screen == NULL) {
@@ -81,13 +82,6 @@ void screen_move_cursor(screen_t *screen, direction_e direction) {
         return;
     }
 
-    log_message(
-        "Before: %d %d %x",
-        screen->cursor.row,
-        screen->cursor.col,
-        direction
-    );
-
     switch (direction) {
         case UP: {
             if (screen->cursor.row - 1 <= screen->padding.top) {
@@ -118,11 +112,37 @@ void screen_move_cursor(screen_t *screen, direction_e direction) {
             break;
         }
     }
+}
 
-    log_message(
-        "After: %d %d %x",
-        screen->cursor.row,
-        screen->cursor.col,
-        direction
-    );
+void screen_update(screen_t *screen, key_press_t *key_press, double delta) {
+    if (screen == NULL) {
+        log_message("handle_input: screen ptr is NULL");
+        return;
+    }
+
+    if (key_press == NULL) {
+        log_message("handle_input: key press ptr is NULL");
+        return;
+    }
+
+    if (!key_press->is_special) {
+        return;
+    }
+
+    switch(key_press->key) {
+        case UP_ARROW_KEY:
+            screen_move_cursor(screen, UP);
+            break;
+        case DOWN_ARROW_KEY:
+            screen_move_cursor(screen, DOWN);
+            break;
+        case RIGHT_ARROW_KEY:
+            screen_move_cursor(screen, RIGHT);
+            break;
+        case LEFT_ARROW_KEY:
+            screen_move_cursor(screen, LEFT);
+            break;
+        default:
+            break;
+    }
 }

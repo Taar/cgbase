@@ -1,8 +1,11 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "keys.h"
 #include "errors.h"
+#include "logger.h"
 
 key_code_t *create_key_code(u_int8_t key, size_t capacity, special_key_t special_key) {
     key_code_t *key_code = malloc(sizeof(key_code_t));
@@ -98,6 +101,60 @@ key_code_t *key_code_get_by_index(key_code_t *key_code, size_t index) {
     }
 
     return key_code->children[index];
+}
+
+void handle_input(key_press_t *key_press, key_code_t *root) {
+    if (key_press == NULL) {
+        log_message("handle_input: key press ptr is NULL");
+        return;
+    }
+
+    if (root == NULL) {
+        log_message("handle_input: root ptr is NULL");
+        return;
+    }
+
+    u_int8_t key[1];
+    size_t result = 0;
+    key_code_t *current_key_code = root;
+    bool key_code_not_found = false;
+
+    while ((result = read(fileno(stdin), key, 1)) > 0) {
+        log_message("stdin: %d - %x", result, key[0]);
+
+        int child_index = key_code_find_by_index(current_key_code, key[0]);
+
+        if (child_index < 0) {
+            key_code_not_found = true;
+            break;
+        }
+
+        key_code_t *key_code = key_code_get_by_index(
+            current_key_code,
+            child_index
+        );
+        if (key_code == NULL) {
+            log_message(
+                "WARNING: NULL ptr for %x at %d",
+                current_key_code->key,
+                child_index
+            );
+            current_key_code = root;
+            break;
+        }
+
+        log_message("Key code found: %x", key_code->key);
+        current_key_code = key_code;
+    }
+
+    if (current_key_code == root && key_code_not_found) {
+        key_press->key = key[0];
+        key_press->is_special = false;
+        return;
+    }
+
+    key_press->key = current_key_code->key;
+    key_press->is_special = true;
 }
 
 #define KEY_COUNT 9
