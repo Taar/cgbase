@@ -8,11 +8,11 @@ SOURCES := $(wildcard $(SRC_DIR)/*.c)
 OBJECTS := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SOURCES))
 
 cgbase: $(OBJECTS)
-	$(CC) $(CFLAGS) $^ -o $(OBJ_DIR)/$@
+	$(CC) $(CFLAGS) -Lm /usr/lib/libm.so $^ -o $(OBJ_DIR)/$@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) -I$(SRC_DIR) -c $< -o $@
+	$(CC) $(CFLAGS) -g3 -I$(SRC_DIR) -c $< -o $@
 
 run:
 	./build/cgbase

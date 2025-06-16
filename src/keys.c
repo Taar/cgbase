@@ -7,7 +7,7 @@
 #include "errors.h"
 #include "logger.h"
 
-key_code_t *create_key_code(u_int8_t key, size_t capacity, special_key_t special_key) {
+key_code_t *create_key_code(u_int8_t key, int capacity, special_key_t special_key) {
     key_code_t *key_code = malloc(sizeof(key_code_t));
     if (key_code == NULL) {
         return NULL;
@@ -41,7 +41,7 @@ void free_key_code(key_code_t *key_code) {
     if (key_code->capacity == 0) {
         key_code_t **children = key_code->children;
         if (key_code->size > 0) {
-            for (size_t i = 0; i < key_code->size; ++i) {
+            for (int i = 0; i < key_code->size; ++i) {
                 free_key_code(children[i]);
             }
         }
@@ -85,7 +85,7 @@ int key_code_find_by_index(key_code_t *key_code, u_int8_t key) {
         return -1;
     }
 
-    for (size_t i = 0; i < key_code->size; ++i) {
+    for (int i = 0; i < key_code->size; ++i) {
         key_code_t *child = key_code->children[i];
         if (child != NULL && child->key == key) {
             return i;
@@ -95,7 +95,7 @@ int key_code_find_by_index(key_code_t *key_code, u_int8_t key) {
     return -1;
 }
 
-key_code_t *key_code_get_by_index(key_code_t *key_code, size_t index) {
+key_code_t *key_code_get_by_index(key_code_t *key_code, int index) {
     if (key_code == NULL || key_code->capacity == 0 || index >= key_code->size) {
         return NULL;
     }
@@ -157,7 +157,7 @@ void handle_input(key_press_t *key_press, key_code_t *root) {
     key_press->is_special = true;
 }
 
-#define KEY_COUNT 9
+#define KEY_COUNT 10
 #define MAX_KEY_BYTES 6
 #define BASE_CAPACITY 2
 key_code_t *create_key_code_tree() {
@@ -184,7 +184,8 @@ key_code_t *create_key_code_tree() {
         {27, 91, 66, 0x00, DOWN_ARROW_KEY},
         {27, 91, 67, 0x00, RIGHT_ARROW_KEY},
         {27, 91, 68, 0x00, LEFT_ARROW_KEY},
-        {27, 79, 80, 0x00, F1_KEY}
+        {27, 79, 80, 0x00, F1_KEY},
+        {27, 79, 81, 0x00, F2_KEY}
     };
 
     key_code_t *current_key_code = root;

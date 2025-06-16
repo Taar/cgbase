@@ -53,41 +53,11 @@ int main (int argc, char *argv[]) {
      * Would be better to avoid using usleep and use a loop with
      * time diff? Like how you would with a game loop?
      */
-    static useconds_t pause = 5000;
     static size_t max_col = 40;
     static size_t max_row = 30;
 
-    size_t row = 1;
-    size_t col = 1;
-    size_t col_stop = max_col;
-    size_t row_stop = max_row;
-
-    terminal_set_background(&color_pink);
-    for (; col <= col_stop; ++col) {
-        terminal_cursor_move_to(row, col);
-        fprintf(stdout, " ");
-        fflush(stdout);
-        usleep(pause);
-    }
-    for (; row <= row_stop; ++row) {
-        terminal_cursor_move_to(row, col);
-        fprintf(stdout, " ");
-        fflush(stdout);
-        usleep(pause);
-    }
-    for (; col > 1; --col) {
-        terminal_cursor_move_to(row, col);
-        fprintf(stdout, " ");
-        fflush(stdout);
-        usleep(pause);
-    }
-    for (; row > 1; --row) {
-        terminal_cursor_move_to(row, col);
-        fprintf(stdout, " ");
-        fflush(stdout);
-        usleep(pause);
-    }
-
+    /*
+     * TODO: Add title animation stuff pls
     terminal_reset();
     terminal_cursor_move_to(
         1,
@@ -102,6 +72,7 @@ int main (int argc, char *argv[]) {
     terminal_reset();
     terminal_unhide_cursor();
     fflush(stdout);
+    */
 
     /*
      * End beginning animation stuff
@@ -111,16 +82,30 @@ int main (int argc, char *argv[]) {
     if (screen == NULL) {
         // TODO: need to handle this case
     }
-    screen->padding = (padding_t){ .top = 1, .right = 1, .bottom = 1, .left = 1 };
+    screen->padding = (padding_t){
+        .top = 1,
+        .top_color = color_pink,
+        .right = 1,
+        .right_color = color_pink,
+        .bottom = 1,
+        .bottom_color = color_pink,
+        .left = 1,
+        .left_color = color_pink,
+    };
+    // NOTE: .row and .col need to be relative to the terminal
+    // padding + 1 basically
     screen->cursor = (cursor_t){ .row = 2, .col = 2 };
     screen->max_row = max_row;
     screen->max_col = max_col;
+    screen->animation_time = 500.0;
+    screen->current_time = 0.0;
 
     database_t *database = new_database(
         screen_get_row_count(screen),
         screen_get_column_count(screen)
     );
     if (database == NULL) {
+        log_message("database is a NULL ptr");
         // TODO: need to handle this case
     }
 
@@ -143,12 +128,18 @@ int main (int argc, char *argv[]) {
     double slice = 16.7 * 15;
 
     key_press_t *key_press = malloc(sizeof(key_press_t));
+    if (key_press == NULL) {
+        log_message("key_press is a NULL ptr");
+        // TODO: handle this case ...
+    }
     key_press->is_special = true;
     key_press->key = NOOP_KEY;
 
     while (running) {
 
-        double delta = (1.0 * (clock() - last_render) / CLOCKS_PER_SEC) / 1000.0;
+        clock_t now = clock();
+        double delta = (now - last_render) / (CLOCKS_PER_SEC / 1000.0);
+        last_render = now;
 
         handle_input(key_press, root);
 
@@ -166,6 +157,7 @@ int main (int argc, char *argv[]) {
         }
 
         screen_update(screen, key_press, delta);
+        screen_draw(screen);
 
         accumulator += delta;
         if (accumulator < slice) {
@@ -179,7 +171,7 @@ int main (int argc, char *argv[]) {
         terminal_hide_cursor();
         terminal_set_foreground(&color_pink);
 
-        for (size_t row_index = 0; row_index < database->rows; ++row_index) {
+        for (int row_index = 0; row_index < database->rows; ++row_index) {
             terminal_cursor_move_to(
                 screen->padding.right + 1 + row_index,
                 screen->padding.top + 1
@@ -189,7 +181,7 @@ int main (int argc, char *argv[]) {
                 log_message("LINE NULL at %d", row_index);
                 break;
             }
-            for (size_t col_index = 0; col_index < database->columns; ++col_index) {
+            for (int col_index = 0; col_index < database->columns; ++col_index) {
                 u_int8_t character = line[col_index];
                 if (character == 0x0) {
                     character = ' ';

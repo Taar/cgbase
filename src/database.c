@@ -4,7 +4,7 @@
 #include "database.h"
 #include "errors.h"
 
-database_t *new_database(size_t rows, size_t columns){
+database_t *new_database(int rows, int columns){
     database_t *database = malloc(sizeof(database_t));
     if (database == NULL) {
         return NULL;
@@ -22,10 +22,10 @@ database_t *new_database(size_t rows, size_t columns){
 
     database->lines = lines;
 
-    for (size_t row_index = 0; row_index < database->rows; ++row_index) {
+    for (int row_index = 0; row_index < database->rows; ++row_index) {
         u_int8_t *line = calloc(database->columns, sizeof(u_int8_t));
         if (line == NULL) {
-            for (size_t i = 0; i <= row_index; ++i) {
+            for (int i = 0; i <= row_index; ++i) {
                 u_int8_t *line = database->lines[i];
                 free(line);
             }
@@ -42,8 +42,8 @@ database_t *new_database(size_t rows, size_t columns){
 
 int database_update_at(
     database_t *database,
-    size_t row,
-    size_t column,
+    int row,
+    int column,
     u_int8_t character
 ) {
     if (database == NULL) {
@@ -68,7 +68,7 @@ void free_database(database_t *database) {
     if (database == NULL) {
         return;
     }
-    for (size_t i = 0; i < database->rows; ++i) {
+    for (int i = 0; i < database->rows; ++i) {
         free(database->lines[i]);
     }
     free(database->lines);

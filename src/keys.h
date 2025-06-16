@@ -10,7 +10,8 @@ typedef enum SpecialKey {
     DOWN_ARROW_KEY = 66,
     RIGHT_ARROW_KEY = 67,
     LEFT_ARROW_KEY = 68,
-    F1_KEY = 80
+    F1_KEY = 80,
+    F2_KEY = 81
 } special_key_t;
 
 typedef struct KeyCode key_code_t;
@@ -25,13 +26,13 @@ void handle_input(key_press_t *key_press, key_code_t *root);
 // NOTE: leaf nodes will have a capacity and size of zero
 typedef struct KeyCode {
     key_code_t **children;
-    size_t capacity;
-    size_t size;
+    int capacity;
+    int size;
     special_key_t special_key;
     u_int8_t key;
 } key_code_t;
 
-key_code_t *create_key_code(u_int8_t key, size_t capacity, special_key_t special_key);
+key_code_t *create_key_code(u_int8_t key, int capacity, special_key_t special_key);
 key_code_t *create_key_code_tree();
 
 int key_code_add_child(key_code_t *parent, key_code_t *child);
@@ -39,6 +40,6 @@ int key_code_add_child(key_code_t *parent, key_code_t *child);
 // can fit a positive value that is larger than an int. Should this be a long long?
 // I think it's ok for now cause the list won't ever have that many values
 int key_code_find_by_index(key_code_t *key_code, u_int8_t key);
-key_code_t *key_code_get_by_index(key_code_t *key_code, size_t index);
+key_code_t *key_code_get_by_index(key_code_t *key_code, int index);
 
 void free_key_code(key_code_t *key_code);

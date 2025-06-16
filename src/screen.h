@@ -6,21 +6,27 @@
 #include "terminal.h"
 
 typedef struct Padding {
-    u_int8_t left;
-    u_int8_t bottom;
-    u_int8_t right;
-    u_int8_t top;
+    rgb_t top_color;
+    rgb_t right_color;
+    rgb_t bottom_color;
+    rgb_t left_color;
+    int top;
+    int right;
+    int bottom;
+    int left;
 } padding_t;
 
 typedef struct Cursor {
-    size_t row;
-    size_t col;
+    int row;
+    int col;
 } cursor_t;
 
 typedef struct Screen {
+    double animation_time;
+    double current_time;
     cursor_t cursor;
-    size_t max_row;
-    size_t max_col;
+    int max_row;
+    int max_col;
     padding_t padding;
 } screen_t;
 
@@ -33,8 +39,12 @@ typedef enum DIRECTION {
     LEFT = 'D'
 } direction_e;
 
+// TODO: Should control the border drawing animation by using the delta
+// and loading_percent and animation_time
 void screen_update(screen_t *screen, key_press_t *key_press, double delta);
 void screen_move_cursor(screen_t *screen, direction_e direction);
+
+void screen_draw(screen_t *screen);
 
 size_t screen_get_row_index(screen_t *screen);
 size_t screen_get_row_count(screen_t *screen);

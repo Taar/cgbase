@@ -1,3 +1,7 @@
+#include <float.h>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "screen.h"
@@ -129,6 +133,14 @@ void screen_update(screen_t *screen, key_press_t *key_press, double delta) {
         return;
     }
 
+    if (screen->current_time < screen->animation_time) {
+        screen->current_time += delta;
+        if (screen->current_time >= screen->animation_time) {
+            screen->current_time = screen->animation_time;
+        }
+        return;
+    }
+
     switch(key_press->key) {
         case UP_ARROW_KEY:
             screen_move_cursor(screen, UP);
@@ -144,5 +156,51 @@ void screen_update(screen_t *screen, key_press_t *key_press, double delta) {
             break;
         default:
             break;
+    }
+}
+
+// TODO: Update this so that it updates the whole screen's "border"
+// Maybe it would be possible to replace the if statements with while loops
+void screen_draw(screen_t *screen) {
+    // Going to assume that all sides have padding and are part of the animation
+    if (screen->current_time < screen->animation_time) {
+        // Should I check if this could overflow. I'm not sure how to do that
+        long long total = (screen->max_col * 2) + (screen->max_row * 2);
+        double at = ceil(total * screen->current_time / screen->animation_time);
+        if (at < screen->max_col) {
+            terminal_set_background(&screen->padding.top_color);
+            terminal_cursor_move_to(screen->padding.right, at);
+            fprintf(stdout, " ");
+            terminal_reset();
+        } else if (
+            at >= screen->max_col &&
+            at < screen->max_col + screen->max_row
+        ) {
+            terminal_set_background(&screen->padding.right_color);
+            terminal_cursor_move_to(at - screen->max_col, screen->max_col);
+            fprintf(stdout, " ");
+            terminal_reset();
+        } else if (
+            at >= screen->max_col + screen->max_row &&
+            at < screen->max_row + (screen->max_col * 2)
+        ) {
+            terminal_set_background(&screen->padding.right_color);
+            terminal_cursor_move_to(
+                screen->max_row,
+                screen->max_col - (at - (screen->max_row + screen->max_col))
+            );
+            fprintf(stdout, " ");
+            terminal_reset();
+        } else if (
+            at >= screen->max_row + (screen->max_col * 2)
+        ) {
+            terminal_set_background(&screen->padding.right_color);
+            terminal_cursor_move_to(
+                screen->max_row - (at - (screen->max_row + (screen->max_col * 2))),
+                screen->padding.left
+            );
+            fprintf(stdout, " ");
+            terminal_reset();
+        }
     }
 }
