@@ -47,58 +47,47 @@ int main (int argc, char *argv[]) {
     terminal_hide_cursor();
     fflush(stdout);
 
-    /*
-     * TODO:
-     * Intro animation stuff.
-     * Would be better to avoid using usleep and use a loop with
-     * time diff? Like how you would with a game loop?
-     */
     static size_t max_col = 40;
-    static size_t max_row = 30;
+    static size_t max_row = 20;
 
-    /*
-     * TODO: Add title animation stuff pls
-    terminal_reset();
-    terminal_cursor_move_to(
+    screen_t *screen = create_screen(
+        max_col,
+        max_row,
         1,
-        (max_col / 2) - 3  // 3 being the half the length of the project name
+        1
     );
-    terminal_set_foreground(&color_pink);
-    fprintf(stdout, "cg");
-    terminal_reset();
-    fprintf(stdout, "'");
-    terminal_set_foreground(&color_blue);
-    fprintf(stdout, "BASE");
-    terminal_reset();
-    terminal_unhide_cursor();
-    fflush(stdout);
-    */
-
-    /*
-     * End beginning animation stuff
-     */
-
-    screen_t *screen = malloc(sizeof(screen_t));
     if (screen == NULL) {
         // TODO: need to handle this case
     }
-    screen->padding = (padding_t){
-        .top = 1,
-        .top_color = color_pink,
-        .right = 1,
-        .right_color = color_pink,
-        .bottom = 1,
-        .bottom_color = color_pink,
-        .left = 1,
-        .left_color = color_pink,
-    };
-    // NOTE: .row and .col need to be relative to the terminal
-    // padding + 1 basically
-    screen->cursor = (cursor_t){ .row = 2, .col = 2 };
-    screen->max_row = max_row;
-    screen->max_col = max_col;
-    screen->animation_time = 500.0;
-    screen->current_time = 0.0;
+    set_screen_animation(screen, 500.0);
+    set_screen_border_side(
+        screen,
+        BORDER_TOP,
+        color_pink,
+        color_blue,
+        ' '
+    );
+    set_screen_border_side(
+        screen,
+        BORDER_RIGHT,
+        color_pink,
+        color_blue,
+        '!'
+    );
+    set_screen_border_side(
+        screen,
+        BORDER_BOTTOM,
+        color_pink,
+        color_blue,
+        '#'
+    );
+    set_screen_border_side(
+        screen,
+        BORDER_LEFT,
+        color_pink,
+        color_blue,
+        '-'
+    );
 
     database_t *database = new_database(
         screen_get_row_count(screen),
@@ -108,6 +97,8 @@ int main (int argc, char *argv[]) {
         log_message("database is a NULL ptr");
         // TODO: need to handle this case
     }
+    log_message("database rows: %d", database->rows);
+    log_message("database columns: %d", database->columns);
 
     terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
     fflush(stdout);
@@ -119,14 +110,6 @@ int main (int argc, char *argv[]) {
     // animation was running
     fflush(stdin);
 
-    bool running = true;
-
-    clock_t last_render = clock();
-    double accumulator = 0.0;
-    // TODO: This should make it so that the render is only happening 4 times a second
-    // Maybe it would be better to only render if there is a change (on input)?
-    double slice = 16.7 * 15;
-
     key_press_t *key_press = malloc(sizeof(key_press_t));
     if (key_press == NULL) {
         log_message("key_press is a NULL ptr");
@@ -135,13 +118,22 @@ int main (int argc, char *argv[]) {
     key_press->is_special = true;
     key_press->key = NOOP_KEY;
 
-    while (running) {
+    clock_t last_render = clock();
+    clock_t now = last_render;
 
-        clock_t now = clock();
-        double delta = (now - last_render) / (CLOCKS_PER_SEC / 1000.0);
+    double delta = 0.0;
+
+    bool running = true;
+    bool should_redraw = false;
+
+    while (running) {
+        now = clock();
+        delta = (now - last_render) / (CLOCKS_PER_SEC / 1000.0);
         last_render = now;
 
         handle_input(key_press, root);
+
+        should_redraw = false;
 
         if (key_press->is_special && key_press->key == F1_KEY) {
             running = false;
@@ -149,58 +141,71 @@ int main (int argc, char *argv[]) {
         } else if (!key_press->is_special) {
             database_update_at(
                 database,
-                screen_get_row_index(screen),
-                screen_get_column_index(screen),
+                screen->cursor.row,
+                screen->cursor.col,
                 key_press->key
             );
             screen_move_cursor(screen, RIGHT);
+            should_redraw = true;
         }
 
-        screen_update(screen, key_press, delta);
-        screen_draw(screen);
-
-        accumulator += delta;
-        if (accumulator < slice) {
-            accumulator += delta;
-            continue;
+        // TODO: Could the update functions return a value to let
+        // the rest of the project know that it should draw?
+        // If there are no update then there is no reason to draw?
+        int result = screen_update(screen, key_press, delta);
+        if (result < 0) {
+            log_message("Error during screen update");
+            break;
+        } else if (result > 0) {
+            should_redraw = true;
         }
-        accumulator -= slice;
 
-        // draw part of the loop
+        if (should_redraw) {
+            terminal_hide_cursor();
 
-        terminal_hide_cursor();
-        terminal_set_foreground(&color_pink);
+            screen_draw(screen);
 
-        for (int row_index = 0; row_index < database->rows; ++row_index) {
-            terminal_cursor_move_to(
-                screen->padding.right + 1 + row_index,
-                screen->padding.top + 1
-            );
-            u_int8_t *line = database->lines[row_index];
-            if (line == NULL) {
-                log_message("LINE NULL at %d", row_index);
-                break;
-            }
-            for (int col_index = 0; col_index < database->columns; ++col_index) {
-                u_int8_t character = line[col_index];
-                if (character == 0x0) {
-                    character = ' ';
+            terminal_set_foreground(&color_pink);
+
+            // TODO: Move this to its own function
+            // TODO: Used absolute screen functions to help draw
+            for (int row_index = 0; row_index < database->rows; ++row_index) {
+                // NOTE: only need to move the cursor to the beginning of the line
+                // since adding a new character to the buffer will move the cursor
+                // to the right automatically
+                terminal_cursor_move_to(
+                    2 + row_index,  // TODO: Need to be relative to screen
+                    2
+                );
+                u_int8_t *line = database->lines[row_index];
+                if (line == NULL) {
+                    log_message("LINE NULL at %d", row_index);
+                    break;
                 }
-                // Don't need to move the cursor after each character since it will
-                // automatically move to the right. Just need to re-position it for
-                // each row.
-                fprintf(stdout, "%c", character);
+                for (int col_index = 0; col_index < database->columns; ++col_index) {
+                    u_int8_t character = line[col_index];
+                    if (character == 0x0) {
+                        character = ' ';
+                    }
+                    // Don't need to move the cursor after each character since it will
+                    // automatically move to the right. Just need to re-position it for
+                    // each row.
+                    fprintf(stdout, "%c", character);
+                }
             }
-        }
 
-        terminal_cursor_move_to(screen->cursor.row, screen->cursor.col);
-        terminal_unhide_cursor();
-        fflush(stdout);
+            terminal_cursor_move_to(
+                screen_get_absolute_cursor_row(screen),
+                screen_get_absolute_cursor_col(screen)
+            );
+            terminal_unhide_cursor();
+            fflush(stdout);
+        }
     }
 
     // Do I need to free this if the program is going to close anyways?
     // Won't the OS release that memory? Is it good hygiene to do it anyways?
-    free(screen);
+    free_screen(screen);
     free(key_press);
     free_database(database);
     free_key_code(root);

@@ -1,33 +1,80 @@
 #pragma once
 
 #include <sys/types.h>
+#include <stdbool.h>
 
 #include "keys.h"
 #include "terminal.h"
 
-typedef struct Padding {
-    rgb_t top_color;
-    rgb_t right_color;
-    rgb_t bottom_color;
-    rgb_t left_color;
-    int top;
-    int right;
-    int bottom;
-    int left;
-} padding_t;
+#define BORDER_WIDTH 1
 
+typedef struct Screen screen_t;
+
+typedef enum BORDER_SIDE {
+    BORDER_TOP,
+    BORDER_RIGHT,
+    BORDER_BOTTOM,
+    BORDER_LEFT
+} border_side_e;
+
+typedef enum ANIMATION_STATE {
+    ANIMATION_RUNNING,
+    ANIMATION_COMPLETE,
+    ANIMATION_NOOP
+} animation_state_e;
+
+typedef struct Animation {
+    double animation_time;
+    double current_time;
+    animation_state_e state;
+} animation_t;
+
+// TODO: This should be called Border and Padding stuff
+// should be something different ... *<:O)8
+typedef struct BorderSide {
+    u_int8_t *buffer;  // TODO: is buffer the correct name?
+    rgb_t bg_color;
+    rgb_t fg_color;
+    u_int8_t character;
+} border_side_t;
+
+int set_screen_border_side(
+    screen_t *screen,
+    border_side_e border,
+    rgb_t bg_color,
+    rgb_t fg_color,
+    u_int8_t character
+);
+
+int update_screen_border_buffers(screen_t *screen);
+int fill_screen_border_buffers(screen_t *screen);
+
+typedef struct Borders {
+    animation_t animation;
+    border_side_t top;
+    border_side_t right;
+    border_side_t left;
+    border_side_t bottom;
+} borders_t;
+
+int set_screen_animation(
+    screen_t *screen,
+    double animation_time
+);
+
+// NOTE: Cursor should be relative to it's parent screen
 typedef struct Cursor {
     int row;
     int col;
 } cursor_t;
 
 typedef struct Screen {
-    double animation_time;
-    double current_time;
+    borders_t borders;
     cursor_t cursor;
-    int max_row;
-    int max_col;
-    padding_t padding;
+    int max_row;  // height
+    int max_col;  // width
+    int col_position;
+    int row_position;
 } screen_t;
 
 // Each direction is set to the number (char) that will be placed within the
@@ -39,19 +86,21 @@ typedef enum DIRECTION {
     LEFT = 'D'
 } direction_e;
 
+screen_t *create_screen(int max_col, int max_row, int col_position, int row_position);
+void free_screen(screen_t *screen);
+
 // TODO: Should control the border drawing animation by using the delta
 // and loading_percent and animation_time
-void screen_update(screen_t *screen, key_press_t *key_press, double delta);
+int screen_update(screen_t *screen, key_press_t *key_press, double delta);
 void screen_move_cursor(screen_t *screen, direction_e direction);
 
 void screen_draw(screen_t *screen);
 
-size_t screen_get_row_index(screen_t *screen);
-size_t screen_get_row_count(screen_t *screen);
-size_t screen_get_row_max(screen_t *screen);
-size_t screen_get_row_min(screen_t *screen);
+int screen_get_row_count(screen_t *screen);
+int screen_get_column_count(screen_t *screen);
 
-size_t screen_get_column_index(screen_t *screen);
-size_t screen_get_column_count(screen_t *screen);
-size_t screen_get_column_max(screen_t *screen);
-size_t screen_get_column_min(screen_t *screen);
+int screen_get_absolute_cursor_row(screen_t *screen);
+int screen_get_absolute_cursor_col(screen_t *screen);
+
+int screen_row_to_absolute(screen_t *screen, int row_index);
+int screen_col_to_absolute(screen_t *screen, int col_index);
