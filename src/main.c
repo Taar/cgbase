@@ -174,8 +174,8 @@ int main (int argc, char *argv[]) {
                 // since adding a new character to the buffer will move the cursor
                 // to the right automatically
                 terminal_cursor_move_to(
-                    2 + row_index,  // TODO: Need to be relative to screen
-                    2
+                    screen->row_position + 1 + row_index,
+                    screen->col_position + 1
                 );
                 u_int8_t *line = database->lines[row_index];
                 if (line == NULL) {

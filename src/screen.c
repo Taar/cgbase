@@ -181,7 +181,7 @@ void screen_move_cursor(screen_t *screen, direction_e direction) {
             break;
         }
         case DOWN: {
-            if (screen->cursor.row > screen->max_row - 1 - (BORDER_WIDTH * 2)) {
+            if (screen->cursor.row + 1 > screen->max_row - 1 - (BORDER_WIDTH * 2)) {
                 break;
             }
             screen->cursor.row += 1;
@@ -202,6 +202,7 @@ void screen_move_cursor(screen_t *screen, direction_e direction) {
             break;
         }
     }
+    log_message("Cursor at: col %d row %d", screen->cursor.col, screen->cursor.row);
 }
 
 int screen_get_absolute_cursor_row(screen_t *screen) {
@@ -417,7 +418,10 @@ void screen_draw(screen_t *screen) {
     }
 
     for (index = 0; index < screen->max_row - 1; ++index) {
-        terminal_cursor_move_to(screen->row_position + index,  screen->max_col);
+        terminal_cursor_move_to(
+            screen->row_position + index,
+            screen->max_col + screen->col_position - 1  // TODO: why is this off by one?
+        );
         if (screen->borders.right.buffer[index] != 0x00) {
             if (index == 0 || screen->borders.right.buffer[index - 1] != screen->borders.right.character) {
                 terminal_set_background(&screen->borders.right.bg_color);
@@ -432,7 +436,10 @@ void screen_draw(screen_t *screen) {
         fprintf(stdout, "%c", ' ');
     }
 
-    terminal_cursor_move_to(screen->max_row,  screen->col_position + 1);
+    terminal_cursor_move_to(
+        screen->max_row + screen->row_position - 1,  // TODO: why is this off by one?
+        screen->col_position + 1
+    );
     for (index = 0; index < screen->max_col - 1; ++index) {
         if (screen->borders.bottom.buffer[index] != 0x00) {
             if (index == 0 || screen->borders.bottom.buffer[index - 1] != screen->borders.bottom.character) {
@@ -449,7 +456,10 @@ void screen_draw(screen_t *screen) {
     }
 
     for (index = 0; index < screen->max_row - 1; ++index) {
-        terminal_cursor_move_to(screen->row_position + index + 1,  screen->col_position);
+        terminal_cursor_move_to(
+            screen->row_position + index + 1,
+            screen->col_position
+        );
         if (screen->borders.left.buffer[index] != 0x00) {
             if (index == 0 || screen->borders.left.buffer[index - 1] != screen->borders.left.character) {
                 terminal_set_background(&screen->borders.left.bg_color);
