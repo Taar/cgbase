@@ -71,10 +71,10 @@ typedef struct Cursor {
 typedef struct Screen {
     borders_t borders;
     cursor_t cursor;
-    int max_row;  // height
-    int max_col;  // width
-    int col_position;
-    int row_position;
+    int x;
+    int width;
+    int y;
+    int height;
 } screen_t;
 
 // Each direction is set to the number (char) that will be placed within the
@@ -86,7 +86,7 @@ typedef enum DIRECTION {
     LEFT = 'D'
 } direction_e;
 
-screen_t *create_screen(int max_col, int max_row, int col_position, int row_position);
+screen_t *create_screen(int x, int width, int y, int height);
 void free_screen(screen_t *screen);
 
 // TODO: Should control the border drawing animation by using the delta

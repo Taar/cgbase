@@ -11,17 +11,19 @@
 #include "terminal.h"
 
 
-screen_t *create_screen(int max_col, int max_row, int col_postion, int row_position) {
+screen_t *create_screen(int x, int width, int y, int height) {
     screen_t *screen = malloc(sizeof(screen_t));
     if (screen == NULL) {
         return NULL;
     }
 
+    screen->component_box = NULL;
+
     // TODO: These should probably result in an error code
-    screen->max_col = max_col <= 0 ? 1 : max_col;
-    screen->max_row = max_row <= 0 ? 1 : max_row;
-    screen->col_position = col_postion <= 0 ? 1 : col_postion;
-    screen->row_position = row_position <= 0 ? 1 : row_position;
+    screen->x = x <= 0 ? 1 : x;
+    screen->width = width <= 0 ? 1 : width;
+    screen->y = y <= 0 ? 1 : y;
+    screen->height = height <= 0 ? 1 : height;
     screen->cursor = (cursor_t){
         .row = 0,
         .col = 0
@@ -113,11 +115,11 @@ int set_screen_border_side(
     switch (border) {
         case BORDER_LEFT:
         case BORDER_RIGHT:
-            buffer = calloc(screen->max_row - 1, sizeof(u_int8_t));
+            buffer = calloc(screen->height - 1, sizeof(u_int8_t));
             break;
         case BORDER_TOP:
         case BORDER_BOTTOM:
-            buffer = calloc(screen->max_col - 1, sizeof(u_int8_t));
+            buffer = calloc(screen->width - 1, sizeof(u_int8_t));
             break;
     }
 
@@ -153,7 +155,7 @@ int screen_get_row_count(screen_t *screen) {
         return -1;
     }
 
-    return screen->max_row - (BORDER_WIDTH * 2);
+    return screen->height - (BORDER_WIDTH * 2);
 }
 
 int screen_get_column_count(screen_t *screen) {
@@ -162,7 +164,7 @@ int screen_get_column_count(screen_t *screen) {
         return -1;
     }
 
-    return screen->max_col - (BORDER_WIDTH * 2);
+    return screen->width - (BORDER_WIDTH * 2);
 }
 
 void screen_move_cursor(screen_t *screen, direction_e direction) {
@@ -181,14 +183,14 @@ void screen_move_cursor(screen_t *screen, direction_e direction) {
             break;
         }
         case DOWN: {
-            if (screen->cursor.row + 1 > screen->max_row - 1 - (BORDER_WIDTH * 2)) {
+            if (screen->cursor.row + 1 > screen->height - 1 - (BORDER_WIDTH * 2)) {
                 break;
             }
             screen->cursor.row += 1;
             break;
         }
         case RIGHT: {
-            if (screen->cursor.col + 1 > screen->max_col - 1 - (BORDER_WIDTH * 2)) {
+            if (screen->cursor.col + 1 > screen->width - 1 - (BORDER_WIDTH * 2)) {
                 break;
             }
             screen->cursor.col += 1;
@@ -211,7 +213,7 @@ int screen_get_absolute_cursor_row(screen_t *screen) {
         return -1;
     }
 
-    return screen->cursor.row + screen->row_position + BORDER_WIDTH;
+    return screen->cursor.row + screen->y + BORDER_WIDTH;
 }
 
 int screen_get_absolute_cursor_col(screen_t *screen) {
@@ -219,7 +221,7 @@ int screen_get_absolute_cursor_col(screen_t *screen) {
         log_message("screen_get_absolute_cursor_col: screen ptr is NULL");
         return -1;
     }
-    return screen->cursor.col + screen->col_position + BORDER_WIDTH;
+    return screen->cursor.col + screen->x + BORDER_WIDTH;
 }
 
 // TODO: Have update return a value that indicates if a draw is required
@@ -298,7 +300,7 @@ int fill_screen_border_buffers(screen_t *screen) {
         return -1;
     }
 
-    for (int row_index = 0; row_index < screen->max_row - 1; ++row_index) {
+    for (int row_index = 0; row_index < screen->height - 1; ++row_index) {
         if (screen->borders.right.buffer != NULL) {
             screen->borders.right.buffer[row_index] = screen->borders.right.character;
         }
@@ -306,7 +308,7 @@ int fill_screen_border_buffers(screen_t *screen) {
             screen->borders.left.buffer[row_index] = screen->borders.left.character;
         }
     }
-    for (int col_index = 0; col_index < screen->max_col - 1; ++col_index) {
+    for (int col_index = 0; col_index < screen->width - 1; ++col_index) {
         if (screen->borders.top.buffer != NULL) {
             screen->borders.top.buffer[col_index] = screen->borders.top.character;
         }
@@ -324,7 +326,7 @@ int update_screen_border_buffers(screen_t *screen) {
     }
 
     // Should I check if this could overflow. I'm not sure how to do that
-    long long total = (screen->max_col * 2) + (screen->max_row * 2);
+    long long total = (screen->width * 2) + (screen->height * 2);
     double current = floor(
         total * screen->borders.animation.current_time / screen->borders.animation.animation_time
     );
@@ -332,13 +334,13 @@ int update_screen_border_buffers(screen_t *screen) {
     // TODO: Check null values for buffers
     u_int8_t *buffer;
     int index;
-    int top_max = screen->max_col - 1;
-    int right_max = screen->max_col + screen->max_row - 1;
-    int bottom_max = screen->max_row + (screen->max_col * 2) - 1;
+    int top_max = screen->width - 1;
+    int right_max = screen->width + screen->height - 1;
+    int bottom_max = screen->height + (screen->width * 2) - 1;
     if (current <= top_max) {
         buffer = screen->borders.top.buffer;
         index = (int)current;
-        if (index > screen->max_col || index < 0) {
+        if (index > screen->width || index < 0) {
             log_message("WARNING: Top border index was out of bounds: %f : %d", current, index);
             return -1;
         }
@@ -351,8 +353,8 @@ int update_screen_border_buffers(screen_t *screen) {
         current <= right_max
     ) {
         buffer = screen->borders.right.buffer;
-        index = (int)current - screen->max_col;
-        if (index > screen->max_row || index < 0) {
+        index = (int)current - screen->width;
+        if (index > screen->height || index < 0) {
             log_message("WARNING: Right border index was out of bounds: %f : %d", current, index);
             return -1;
         }
@@ -365,8 +367,8 @@ int update_screen_border_buffers(screen_t *screen) {
         current <= bottom_max
     ) {
         buffer = screen->borders.bottom.buffer;
-        index = screen->max_col + (right_max - (int)current);
-        if (index > screen->max_col || index < 0) {
+        index = screen->width + (right_max - (int)current);
+        if (index > screen->width || index < 0) {
             log_message("WARNING: bottom border index was out of bounds: %f : %d", current, index);
             return -1;
         }
@@ -379,8 +381,8 @@ int update_screen_border_buffers(screen_t *screen) {
         current < total
     ) {
         buffer = screen->borders.left.buffer;
-        index = screen->max_row + (bottom_max - (int)current);
-        if (index > screen->max_row || index < 0) {
+        index = screen->height + (bottom_max - (int)current);
+        if (index > screen->height || index < 0) {
             log_message("WARNING: Left border index was out of bounds: %f : %d", current, index);
             return -1;
         }
@@ -400,9 +402,9 @@ void screen_draw(screen_t *screen) {
 
     // Move cursor to the start of the screen which will also be the start
     // of the top border
-    terminal_cursor_move_to(screen->row_position,  screen->col_position);
+    terminal_cursor_move_to(screen->y,  screen->x);
 
-    for (index = 0; index < screen->max_col - 1; ++index) {
+    for (index = 0; index < screen->width - 1; ++index) {
         if (screen->borders.top.buffer[index] != 0x00) {
             if (index == 0 || screen->borders.top.buffer[index - 1] != screen->borders.top.character) {
                 terminal_set_background(&screen->borders.top.bg_color);
@@ -417,10 +419,10 @@ void screen_draw(screen_t *screen) {
         fprintf(stdout, "%c", ' ');
     }
 
-    for (index = 0; index < screen->max_row - 1; ++index) {
+    for (index = 0; index < screen->height - 1; ++index) {
         terminal_cursor_move_to(
-            screen->row_position + index,
-            screen->max_col + screen->col_position - 1  // TODO: why is this off by one?
+            screen->y + index,
+            screen->width + screen->x - 1  // TODO: why is this off by one?
         );
         if (screen->borders.right.buffer[index] != 0x00) {
             if (index == 0 || screen->borders.right.buffer[index - 1] != screen->borders.right.character) {
@@ -437,10 +439,10 @@ void screen_draw(screen_t *screen) {
     }
 
     terminal_cursor_move_to(
-        screen->max_row + screen->row_position - 1,  // TODO: why is this off by one?
-        screen->col_position + 1
+        screen->height + screen->y - 1,  // TODO: why is this off by one?
+        screen->x + 1
     );
-    for (index = 0; index < screen->max_col - 1; ++index) {
+    for (index = 0; index < screen->width - 1; ++index) {
         if (screen->borders.bottom.buffer[index] != 0x00) {
             if (index == 0 || screen->borders.bottom.buffer[index - 1] != screen->borders.bottom.character) {
                 terminal_set_background(&screen->borders.bottom.bg_color);
@@ -455,10 +457,10 @@ void screen_draw(screen_t *screen) {
         fprintf(stdout, "%c", ' ');
     }
 
-    for (index = 0; index < screen->max_row - 1; ++index) {
+    for (index = 0; index < screen->height - 1; ++index) {
         terminal_cursor_move_to(
-            screen->row_position + index + 1,
-            screen->col_position
+            screen->y + index + 1,
+            screen->x
         );
         if (screen->borders.left.buffer[index] != 0x00) {
             if (index == 0 || screen->borders.left.buffer[index - 1] != screen->borders.left.character) {

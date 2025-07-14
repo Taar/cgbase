@@ -47,14 +47,16 @@ int main (int argc, char *argv[]) {
     terminal_hide_cursor();
     fflush(stdout);
 
-    static size_t max_col = 40;
-    static size_t max_row = 20;
+    static size_t width = 40;
+    static size_t height = 20;
 
+    // TODO: How could I handle multiple screens being rendered at once
+    // Maybe an array of update function pointers? (also for draw)
     screen_t *screen = create_screen(
-        max_col,
-        max_row,
-        1,
-        1
+        5,
+        width,
+        2,
+        height
     );
     if (screen == NULL) {
         // TODO: need to handle this case
@@ -174,8 +176,8 @@ int main (int argc, char *argv[]) {
                 // since adding a new character to the buffer will move the cursor
                 // to the right automatically
                 terminal_cursor_move_to(
-                    screen->row_position + 1 + row_index,
-                    screen->col_position + 1
+                    screen->y + 1 + row_index,
+                    screen->x + 1
                 );
                 u_int8_t *line = database->lines[row_index];
                 if (line == NULL) {
