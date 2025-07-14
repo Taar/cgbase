@@ -38,14 +38,14 @@ void free_key_code(key_code_t *key_code) {
         return;
     }
 
-    if (key_code->capacity == 0) {
+    if (key_code->capacity != 0) {
         key_code_t **children = key_code->children;
         if (key_code->size > 0) {
             for (int i = 0; i < key_code->size; ++i) {
                 free_key_code(children[i]);
             }
         }
-        free(*children);
+        free(children);
     }
 
     free(key_code);

@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic
+# TODO: only use -fsanitize=address with debug builds
+CFLAGS = -Wall -Wextra -pedantic -fsanitize=address
 
 SRC_DIR := src
 OBJ_DIR := build

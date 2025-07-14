@@ -337,10 +337,10 @@ int update_screen_border_buffers(screen_t *screen) {
     int top_max = screen->width - 1;
     int right_max = screen->width + screen->height - 1;
     int bottom_max = screen->height + (screen->width * 2) - 1;
-    if (current <= top_max) {
+    if (current < top_max) {
         buffer = screen->borders.top.buffer;
         index = (int)current;
-        if (index > screen->width || index < 0) {
+        if (index > screen->width - 1 || index < 0) {
             log_message("WARNING: Top border index was out of bounds: %f : %d", current, index);
             return -1;
         }
@@ -350,11 +350,11 @@ int update_screen_border_buffers(screen_t *screen) {
         }
     } else if (
         current > top_max &&
-        current <= right_max
+        current < right_max
     ) {
         buffer = screen->borders.right.buffer;
         index = (int)current - screen->width;
-        if (index > screen->height || index < 0) {
+        if (index > screen->height - 1 || index < 0) {
             log_message("WARNING: Right border index was out of bounds: %f : %d", current, index);
             return -1;
         }
@@ -364,11 +364,11 @@ int update_screen_border_buffers(screen_t *screen) {
         }
     } else if (
         current > right_max &&
-        current <= bottom_max
+        current < bottom_max
     ) {
         buffer = screen->borders.bottom.buffer;
-        index = screen->width + (right_max - (int)current);
-        if (index > screen->width || index < 0) {
+        index = screen->width - 1 + (right_max - (int)current);
+        if (index > screen->width - 1 || index < 0) {
             log_message("WARNING: bottom border index was out of bounds: %f : %d", current, index);
             return -1;
         }
@@ -378,11 +378,11 @@ int update_screen_border_buffers(screen_t *screen) {
         }
     } else if (
         current > bottom_max &&
-        current < total
+        current < total - 1
     ) {
         buffer = screen->borders.left.buffer;
-        index = screen->height + (bottom_max - (int)current);
-        if (index > screen->height || index < 0) {
+        index = screen->height - 1 + (bottom_max - (int)current);
+        if (index > screen->height - 1 || index < 0) {
             log_message("WARNING: Left border index was out of bounds: %f : %d", current, index);
             return -1;
         }
