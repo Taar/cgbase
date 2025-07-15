@@ -17,8 +17,6 @@ screen_t *create_screen(int x, int width, int y, int height) {
         return NULL;
     }
 
-    screen->component_box = NULL;
-
     // TODO: These should probably result in an error code
     screen->x = x <= 0 ? 1 : x;
     screen->width = width <= 0 ? 1 : width;
@@ -30,31 +28,49 @@ screen_t *create_screen(int x, int width, int y, int height) {
     };
     screen->borders = (borders_t){
         .animation = { .state = ANIMATION_NOOP, .current_time = 0.0, .animation_time = 0.0 },
+        .buffer = NULL,
         .top = (border_side_t){
-            .buffer = NULL,
             .bg_color = (rgb_t) {.color = 0x000000},
             .fg_color = (rgb_t) {.color = 0x000000},
+            .start_index = 0,
+            .end_index = width - 1,
             .character = 0x00
         },
         .right = (border_side_t){
-            .buffer = NULL,
             .bg_color = (rgb_t) {.color = 0x000000},
             .fg_color = (rgb_t) {.color = 0x000000},
+            .start_index = width,
+            .end_index = width + height - 1,
             .character = 0x00
         },
         .bottom = (border_side_t){
-            .buffer = NULL,
             .bg_color = (rgb_t) {.color = 0x000000},
             .fg_color = (rgb_t) {.color = 0x000000},
+            .start_index = width + height,
+            .end_index = (width * 2) + height - 1,
             .character = 0x00
         },
         .left = (border_side_t){
-            .buffer = NULL,
             .bg_color = (rgb_t) {.color = 0x000000},
             .fg_color = (rgb_t) {.color = 0x000000},
+            .start_index = (width * 2) + height,
+            .end_index = (width * 2) + (height * 2) - 1,
             .character = 0x00
         },
     };
+
+    screen->borders.buffer_length = (width * 2) + (height * 2);
+    u_int8_t *buffer = calloc(
+        screen->borders.buffer_length,
+        sizeof(u_int8_t)
+    );
+    if (buffer == NULL) {
+        free(screen);
+        return NULL;
+    }
+
+    screen->borders.buffer = buffer;
+
     return screen;
 }
 
@@ -65,17 +81,8 @@ void free_screen(screen_t *screen) {
 
     // NOTE: This method does not free the inner_buffer
 
-    if (screen->borders.top.buffer != NULL) {
-        free(screen->borders.top.buffer);
-    }
-    if (screen->borders.right.buffer != NULL) {
-        free(screen->borders.right.buffer);
-    }
-    if (screen->borders.bottom.buffer != NULL) {
-        free(screen->borders.bottom.buffer);
-    }
-    if (screen->borders.left.buffer != NULL) {
-        free(screen->borders.left.buffer);
+    if (screen->borders.buffer != NULL) {
+        free(screen->borders.buffer);
     }
 
     free(screen);
@@ -108,25 +115,6 @@ int set_screen_border_side(
             border_side = &screen->borders.bottom;
             break;
     }
-
-    border_side->buffer = NULL;
-
-    u_int8_t *buffer;
-    switch (border) {
-        case BORDER_LEFT:
-        case BORDER_RIGHT:
-            buffer = calloc(screen->height - 1, sizeof(u_int8_t));
-            break;
-        case BORDER_TOP:
-        case BORDER_BOTTOM:
-            buffer = calloc(screen->width - 1, sizeof(u_int8_t));
-            break;
-    }
-
-    if (buffer == NULL) {
-        return -1;
-    }
-    border_side->buffer = buffer;
 
     border_side->character = character;
     border_side->fg_color = fg_color;
@@ -244,7 +232,7 @@ int screen_update(screen_t *screen, key_press_t *key_press, double delta) {
     if (
         screen->borders.animation.state == ANIMATION_NOOP
     ) {
-        int result = fill_screen_border_buffers(screen);
+        int result = fill_screen_border_buffer(screen);
         if (result < 0) {
             screen->borders.animation.state = ANIMATION_COMPLETE;
             return -1;
@@ -257,7 +245,7 @@ int screen_update(screen_t *screen, key_press_t *key_press, double delta) {
     ) {
         screen->borders.animation.current_time += delta;
 
-        int result = update_screen_border_buffers(screen);
+        int result = update_screen_border_buffer(screen);
         if (result < 0) {
             screen->borders.animation.state = ANIMATION_COMPLETE;
             return -1;
@@ -294,102 +282,96 @@ int screen_update(screen_t *screen, key_press_t *key_press, double delta) {
     return 0;
 }
 
-int fill_screen_border_buffers(screen_t *screen) {
+int fill_screen_border_buffer(screen_t *screen) {
     if (screen == NULL) {
-        log_message("WARNING: update_screen_border_buffers - screen was a NULL ptr");
+        log_message("WARNING: fill_screen_border_buffer - screen was a NULL ptr");
         return -1;
     }
 
-    for (int row_index = 0; row_index < screen->height - 1; ++row_index) {
-        if (screen->borders.right.buffer != NULL) {
-            screen->borders.right.buffer[row_index] = screen->borders.right.character;
-        }
-        if (screen->borders.left.buffer != NULL) {
-            screen->borders.left.buffer[row_index] = screen->borders.left.character;
-        }
+    if (screen->borders.buffer == NULL) {
+        log_message("WARNING: fill_screen_border_buffer - screen border buffer was a NULL ptr");
+        return -1;
     }
-    for (int col_index = 0; col_index < screen->width - 1; ++col_index) {
-        if (screen->borders.top.buffer != NULL) {
-            screen->borders.top.buffer[col_index] = screen->borders.top.character;
+
+    for (int buffer_index = 0; buffer_index < screen->borders.buffer_length; ++buffer_index) {
+        u_int8_t character;
+        if (
+            buffer_index >= screen->borders.top.start_index &&
+            buffer_index <= screen->borders.top.end_index
+        ) {
+             character = screen->borders.top.character;
+        } else if (
+            buffer_index >= screen->borders.right.start_index &&
+            buffer_index <= screen->borders.right.end_index
+        ) {
+             character = screen->borders.right.character;
+        } else if (
+            buffer_index >= screen->borders.bottom.start_index &&
+            buffer_index <= screen->borders.bottom.end_index
+        ) {
+             character = screen->borders.bottom.character;
+        } else if (
+            buffer_index >= screen->borders.left.start_index &&
+            buffer_index <= screen->borders.left.end_index
+        ) {
+             character = screen->borders.left.character;
+        } else {
+            // This should never happen
+            log_message("Warning: FILL - Border index is outside of border start/end indicies");
+            return - 1;
         }
-        if (screen->borders.bottom.buffer != NULL) {
-            screen->borders.bottom.buffer[col_index] = screen->borders.bottom.character;
-        }
+        screen->borders.buffer[buffer_index] = character;
     }
     return 1;
 }
 
-int update_screen_border_buffers(screen_t *screen) {
+int update_screen_border_buffer(screen_t *screen) {
     if (screen == NULL) {
         log_message("WARNING: update_screen_border_buffers - screen was a NULL ptr");
         return -1;
     }
 
     // Should I check if this could overflow. I'm not sure how to do that
-    long long total = (screen->width * 2) + (screen->height * 2);
+    long long total = (screen->width * 2) + (screen->height * 2) - 1;
     double current = floor(
         total * screen->borders.animation.current_time / screen->borders.animation.animation_time
     );
 
     // TODO: Check null values for buffers
-    u_int8_t *buffer;
-    int index;
-    int top_max = screen->width - 1;
-    int right_max = screen->width + screen->height - 1;
-    int bottom_max = screen->height + (screen->width * 2) - 1;
-    if (current < top_max) {
-        buffer = screen->borders.top.buffer;
-        index = (int)current;
-        if (index > screen->width - 1 || index < 0) {
-            log_message("WARNING: Top border index was out of bounds: %f : %d", current, index);
-            return -1;
-        }
-        if (buffer[index] != screen->borders.top.character) {
-            buffer[index] = screen->borders.top.character;
-            return 1;
-        }
-    } else if (
-        current > top_max &&
-        current < right_max
+    int index = (int)current;
+    u_int8_t character;
+    if (
+        current >= screen->borders.top.start_index &&
+        current <= screen->borders.top.end_index
     ) {
-        buffer = screen->borders.right.buffer;
-        index = (int)current - screen->width;
-        if (index > screen->height - 1 || index < 0) {
-            log_message("WARNING: Right border index was out of bounds: %f : %d", current, index);
-            return -1;
-        }
-        if (buffer[index] != screen->borders.right.character) {
-            buffer[index] = screen->borders.right.character;
-            return 1;
-        }
+         character = screen->borders.top.character;
     } else if (
-        current > right_max &&
-        current < bottom_max
+        current >= screen->borders.right.start_index &&
+        current <= screen->borders.right.end_index
     ) {
-        buffer = screen->borders.bottom.buffer;
-        index = screen->width - 1 + (right_max - (int)current);
-        if (index > screen->width - 1 || index < 0) {
-            log_message("WARNING: bottom border index was out of bounds: %f : %d", current, index);
-            return -1;
-        }
-        if (buffer[index] != screen->borders.bottom.character) {
-            buffer[index] = screen->borders.bottom.character;
-            return 1;
-        }
+         character = screen->borders.right.character;
     } else if (
-        current > bottom_max &&
-        current < total - 1
+        current >= screen->borders.bottom.start_index &&
+        current <= screen->borders.bottom.end_index
     ) {
-        buffer = screen->borders.left.buffer;
-        index = screen->height - 1 + (bottom_max - (int)current);
-        if (index > screen->height - 1 || index < 0) {
-            log_message("WARNING: Left border index was out of bounds: %f : %d", current, index);
-            return -1;
-        }
-        if (buffer[index] != screen->borders.left.character) {
-            buffer[index] = screen->borders.left.character;
-            return 1;
-        }
+         character = screen->borders.bottom.character;
+    } else if (
+        current >= screen->borders.left.start_index &&
+        current <= screen->borders.left.end_index
+    ) {
+         character = screen->borders.left.character;
+    } else {
+        // This should never happen
+        log_message(
+            "Warning: UPDATE - Border index is outside of border start/end indicies - %d %f",
+            index,
+            current
+        );
+        return - 1;
+    }
+    if (screen->borders.buffer[index] == 0x00) {
+        screen->borders.buffer[index] = character;
+        return 1;
     }
     return 0;
 }
@@ -397,6 +379,7 @@ int update_screen_border_buffers(screen_t *screen) {
 // TODO: This method could use some refactoring
 // NOTE: The desired look is that each border draws in a clock-wise manner without
 // any over lapping. Each border should start in a corner.
+// TODO: This isn't working as intended. Need to revisit this.
 void screen_draw(screen_t *screen) {
     int index;
 
@@ -404,76 +387,93 @@ void screen_draw(screen_t *screen) {
     // of the top border
     terminal_cursor_move_to(screen->y,  screen->x);
 
-    for (index = 0; index < screen->width - 1; ++index) {
-        if (screen->borders.top.buffer[index] != 0x00) {
-            if (index == 0 || screen->borders.top.buffer[index - 1] != screen->borders.top.character) {
+    for (index = screen->borders.top.start_index; index <= screen->borders.top.end_index; ++index) {
+        if (screen->borders.buffer[index] != 0x00) {
+            if (
+                index == screen->borders.top.start_index ||
+                screen->borders.buffer[index - 1] != screen->borders.top.character
+            ) {
                 terminal_set_background(&screen->borders.top.bg_color);
                 terminal_set_foreground(&screen->borders.top.fg_color);
             }
-            fprintf(stdout, "%c", screen->borders.top.buffer[index]);
+            fprintf(stdout, "%c", screen->borders.buffer[index]);
             continue;
         }
-        if (index == 0 || screen->borders.top.buffer[index - 1] != 0x00) {
+        if (index == screen->borders.top.start_index || screen->borders.buffer[index - 1] != 0x00) {
             terminal_reset();
         }
         fprintf(stdout, "%c", ' ');
     }
 
-    for (index = 0; index < screen->height - 1; ++index) {
+    for (index = screen->borders.right.start_index; index <= screen->borders.right.end_index; ++index) {
         terminal_cursor_move_to(
-            screen->y + index,
+            screen->y + (index - screen->borders.right.start_index),
             screen->width + screen->x - 1  // TODO: why is this off by one?
         );
-        if (screen->borders.right.buffer[index] != 0x00) {
-            if (index == 0 || screen->borders.right.buffer[index - 1] != screen->borders.right.character) {
+        if (screen->borders.buffer[index] != 0x00) {
+            if (
+                index == screen->borders.right.start_index ||
+                screen->borders.buffer[index - 1] != screen->borders.right.character
+            ) {
                 terminal_set_background(&screen->borders.right.bg_color);
                 terminal_set_foreground(&screen->borders.right.fg_color);
             }
-            fprintf(stdout, "%c", screen->borders.right.buffer[index]);
+            fprintf(stdout, "%c", screen->borders.buffer[index]);
             continue;
         }
-        if (index == 0 || screen->borders.right.buffer[index - 1] != 0x00) {
+        if (index == screen->borders.right.start_index || screen->borders.buffer[index - 1] != 0x00) {
             terminal_reset();
         }
         fprintf(stdout, "%c", ' ');
     }
 
+    // NOTE: The rendering doesn't need to follow the animation ... pls stop thinking that it does
     terminal_cursor_move_to(
-        screen->height + screen->y - 1,  // TODO: why is this off by one?
-        screen->x + 1
+        (screen->height - 1) + screen->y,  // TODO: why is this off by one?
+        screen->x
     );
-    for (index = 0; index < screen->width - 1; ++index) {
-        if (screen->borders.bottom.buffer[index] != 0x00) {
-            if (index == 0 || screen->borders.bottom.buffer[index - 1] != screen->borders.bottom.character) {
-                terminal_set_background(&screen->borders.bottom.bg_color);
-                terminal_set_foreground(&screen->borders.bottom.fg_color);
+    for (index = screen->borders.bottom.end_index; index >= screen->borders.bottom.start_index; --index) {
+        if (screen->borders.buffer[index] == 0x00) {
+            if (index == screen->borders.bottom.end_index || screen->borders.buffer[index + 1] != 0x00) {
+                terminal_reset();
             }
-            fprintf(stdout, "%c", screen->borders.bottom.buffer[index]);
+            fprintf(stdout, "%c", ' ');
             continue;
         }
-        if (index == 0 || screen->borders.bottom.buffer[index - 1] != 0x00) {
-            terminal_reset();
-        }
-        fprintf(stdout, "%c", ' ');
-    }
 
-    for (index = 0; index < screen->height - 1; ++index) {
+        if (
+            screen->borders.buffer[index] == screen->borders.bottom.character &&
+            screen->borders.buffer[index + 1] != screen->borders.bottom.character
+        ) {
+            terminal_set_background(&screen->borders.bottom.bg_color);
+            terminal_set_foreground(&screen->borders.bottom.fg_color);
+        }
+        fprintf(stdout, "%c", screen->borders.buffer[index]);
+    }
+    terminal_reset();
+
+    for (index = screen->borders.left.start_index; index <= screen->borders.left.end_index; ++index) {
         terminal_cursor_move_to(
-            screen->y + index + 1,
+            screen->y + (screen->borders.left.end_index - index),
             screen->x
         );
-        if (screen->borders.left.buffer[index] != 0x00) {
-            if (index == 0 || screen->borders.left.buffer[index - 1] != screen->borders.left.character) {
-                terminal_set_background(&screen->borders.left.bg_color);
-                terminal_set_foreground(&screen->borders.left.fg_color);
+
+        if (screen->borders.buffer[index] == 0x00) {
+            if (index == screen->borders.left.start_index || screen->borders.buffer[index - 1] != 0x00) {
+                terminal_reset();
             }
-            fprintf(stdout, "%c", screen->borders.left.buffer[index]);
+            fprintf(stdout, "%c", ' ');
             continue;
         }
-        if (index == 0 || screen->borders.left.buffer[index - 1] != 0x00) {
-            terminal_reset();
+
+        if (
+            screen->borders.buffer[index] == screen->borders.left.character &&
+            screen->borders.buffer[index - 1] != screen->borders.left.character
+        ) {
+            terminal_set_background(&screen->borders.left.bg_color);
+            terminal_set_foreground(&screen->borders.left.fg_color);
         }
-        fprintf(stdout, "%c", ' ');
+        fprintf(stdout, "%c", screen->borders.buffer[index]);
     }
 
     terminal_reset();

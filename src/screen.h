@@ -32,9 +32,10 @@ typedef struct Animation {
 // TODO: This should be called Border and Padding stuff
 // should be something different ... *<:O)8
 typedef struct BorderSide {
-    u_int8_t *buffer;  // TODO: is buffer the correct name?
     rgb_t bg_color;
     rgb_t fg_color;
+    int start_index;
+    int end_index;
     u_int8_t character;
 } border_side_t;
 
@@ -46,8 +47,8 @@ int set_screen_border_side(
     u_int8_t character
 );
 
-int update_screen_border_buffers(screen_t *screen);
-int fill_screen_border_buffers(screen_t *screen);
+int update_screen_border_buffer(screen_t *screen);
+int fill_screen_border_buffer(screen_t *screen);
 
 typedef struct Borders {
     animation_t animation;
@@ -55,6 +56,8 @@ typedef struct Borders {
     border_side_t right;
     border_side_t left;
     border_side_t bottom;
+    u_int8_t *buffer;
+    int buffer_length;
 } borders_t;
 
 int set_screen_animation(
